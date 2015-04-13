@@ -4,12 +4,12 @@ Collecting host and container metrics using [CAdvisor](https://registry.hub.dock
 
 Motivation, I needed a quick Collectd solution to gather host and container metrics without installing or running software directly on the hosting system (outside of a container).
 
-Collectd is a good solution for gathering metrics from many different sources. It has a wealth of plugins for both active and passive metric collection. There are also plugins which support forwarding metrics to various backends. Not to mention, for me at least, it is already in place as the metrics collection and transport solution. 
+Collectd is a good solution for gathering metrics from many different sources. It has a wealth of plugins for both active and passive metric collection. There are also plugins which support forwarding metrics to various backends. Not to mention, for me at least, it is already in place as the metrics collection and transport solution.
 
 But, Collectd does not currently provide plugins to:
 
 * collect metrics from the host when Collectd itself is running in a container (not that I found anyway).
-* collect metrics from (other) containers running on the host system. 
+* collect metrics from (other) containers running on the host system.
 
 CAdvisor proved a good solution for exposing a base set of metrics from both the host system as well as the other ([Docker](https://github.com/docker/docker)) containers.
 
@@ -24,9 +24,9 @@ Since Collectd configurations are dynamic and target specific, a mounted volume 
 
 ### Collectd
 
-The main Collectd configuration `etc-collectd/collectd.conf.example`. 
+The main Collectd configuration `etc-collectd/collectd.conf.example`.
 
-**Hostname** or **FQDNLookup** must be set prior to starting Collectd. 
+**Hostname** or **FQDNLookup** must be set prior to starting Collectd.
 
 1. `cd etc-colletd`
 1. `cp collectd.conf.example collectd.conf`
@@ -100,11 +100,11 @@ sudo docker run --name=cadvisor \
   -v /sys:/sys:ro \
   -v /var/lib/docker/:/var/lib/docker:ro \
   -d google/cadvisor:latest
-  
+
 sudo docker run --name=collectd \
   -v $(pwd)/etc-collectd:/etc/collectd \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -d maier/collectd:latest
+  -d maier/cadvisor-collectd:latest
 ```
 
 ### Systemd units

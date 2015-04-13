@@ -10,7 +10,7 @@ ExecStartPre=-/usr/bin/docker kill collectd
 ExecStartPre=-/usr/bin/docker rm collectd
 ExecStartPre=-/usr/bin/docker pull maier/collectd
 
-ExecStart=/usr/bin/docker run --volume=/conf/etc-collectd:/etc/collectd --volume=/var/lib/docker/:/var/lib/docker:ro --name=collectd maier/collectd
+ExecStart=/usr/bin/docker run --volume=/conf/etc-collectd:/etc/collectd --volume=/var/lib/docker/:/var/lib/docker:ro --name=collectd maier/cadvisor-collectd
 
 ExecStop=/usr/bin/docker stop collectd
 
