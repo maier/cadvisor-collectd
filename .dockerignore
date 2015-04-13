@@ -2,8 +2,5 @@
 .git
 .gitignore
 etc-collectd/
-opt-collectd/
-tmp/
 cadvisor.service
 collectd.service
-
