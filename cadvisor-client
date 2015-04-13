@@ -1,0 +1,424 @@
+#!/usr/bin/env python
+
+#
+# Collectd exec script to gather metrics from CAdvisor and output them for Collectd
+#
+
+from __future__ import print_function
+from time import strftime, gmtime
+import argparse
+import docker
+import json
+import os.environ
+import socket
+import sys
+import urllib2
+import yaml
+
+#
+# environment variables set by Collectd
+#
+COLLECTD_ENV_HOSTNAME = 'COLLECTD_HOSTNAME'
+COLLECTD_ENV_INTERVAL = 'COLLECTD_INTERVAL'
+
+
+class Collectd(object):
+    """base class to abstract Collectd specifics"""
+    def __init__(self, config):
+        super(Collectd, self).__init__()
+        self.config = config
+        self.hostname = 'NOT_PROVIDED'
+        self.interval = 60
+        if COLLECTD_ENV_HOSTNAME in os.environ and len(os.environ[COLLECTD_ENV_HOSTNAME]) > 0:
+            self.hostname = os.environ[COLLECTD_ENV_HOSTNAME]
+        if COLLECTD_ENV_INTERVAL in os.environ:
+            self.interval = os.environ[COLLECTD_ENV_INTERVAL]
+
+    def send_metric(self, metric_name, metric_value):
+        """ output metric using collectd plain text 'PUTVAL' format
+        Collectd documentation: https://collectd.org/wiki/index.php/Plain_text_protocol#PUTVAL
+        """
+        print('PUTVAL "{}" interval={} N:{}'.format(metric_name, self.interval, metric_value))
+        return
+
+
+class CAdvisor(Collectd):
+    """interface with cadvisor to get host and container metrics"""
+    def __init__(self, config):
+        super(CAdvisor, self).__init__(config)
+        self.ip = None
+        self.port = 8080
+        self.service_list = []
+        self.url = None
+
+        try:
+            cli = docker.Client(base_url='unix:/{}'.format(self.config['docker_socket']))
+            self.docker_container_list = cli.containers()
+        except IOError, e:
+            print('Error connecting to docker socket "{}": {}'.format(self.config['docker_socket'], e))
+            sys.exit(1)
+
+        for i, c in enumerate(self.docker_container_list):
+            self.docker_container_list[i]['SliceId'] = None
+
+        self.active_metrics = {metric[8:]: config[metric] for metric in config if metric[0:8] == 'metrics_' and 'none' not in map(str.lower, config[metric])}
+
+        if 'cadvisor_address' in config:
+            try:
+                self.ip, self.port = config['cadvisor_address'].split(':', 1)
+            except ValueError:
+                self.ip = config['cadvisor_address']
+        else:
+            cadvisor_container_name = config['cadvisor_container']
+            cadvisor_container = None
+            for container in self.docker_container_list:
+                if self.container_match(cadvisor_container_name, container['Id'], container['Names']):
+                    cadvisor_container = cli.inspect_container(container['Id'][0:12])
+                    self.ip = cadvisor_container['NetworkSettings']['IPAddress']
+                    for exposed_port in cadvisor_container['Config']['ExposedPorts']:
+                        if '/tcp' in exposed_port:
+                            self.port = exposed_port.split('/')[0]
+                            break
+                    break
+            else:
+                print("cadvisor_container:{} specified but not found. Check 'docker ps' to verify name.".format(config['cadvisor_container']), file=sys.stderr)
+                sys.exit(2)
+
+        if config['docker_enabled'] and config['docker_containers']:
+            all_containers = '*' in config['docker_containers']
+            for i, s in enumerate(self.docker_container_list):
+                slice_id = "/system.slice/docker-{cid}.scope".format(cid=s['Id'])
+                if all_containers:
+                    self.docker_container_list[i]['SliceId'] = slice_id
+                else:
+                    for include_container in config['docker_containers']:
+                        if self.container_match(include_container, s['Id'], s['Names']):
+                            self.docker_container_list[i]['SliceId'] = slice_id
+                            break
+
+        if config['system_enabled'] and config['system_services']:
+            self.service_list = config['system_services']
+
+    def is_container_id(self, id):
+        try:
+            if int(id, 16):
+                return True
+        except ValueError:
+            return False
+
+    def fix_container_name(self, name):
+        if name[0:1] != '/':
+            return('/' + name)
+        else:
+            return(name)
+
+    def container_match(self, target, container_id, container_names):
+        if self.is_container_id(target):
+            if container_id[0:len(target)] == target:
+                return True
+        else:
+            if self.fix_container_name(target) in container_names:
+                return True
+        return False
+
+    def fetch_stats(self):
+        """fetch stats from CAdvisor, parse returned JSON, return a python data structure"""
+        url = "http://{}:{}/api/v2.0/stats?recursive=true&count=1".format(self.ip, self.port)
+        stats = {}
+        try:
+            response = urllib2.urlopen(url, None, 5)
+            stats = json.loads(response.read())
+        except urllib2.URLError, e:
+            if hasattr(e, 'reason'):
+                print("Failed to reach server, reason {}".format(e.reason), file=sys.stderr)
+            elif hasattr(e, 'code'):
+                print("Server unable to fulfill request {}".format(e.code), file=sys.stderr)
+            sys.exit(1)
+        except socket.timeout:
+            print("Timeout connecting to {}".format(url), file=sys.stderr)
+            sys.exit(1)
+        return(stats)
+
+    #
+    # Collectd is strange about the way it wants metric names formatted.
+    # The naming schema is documented here: https://collectd.org/wiki/index.php/Naming_schema
+    #
+    # basically: host "/" plugin ["-" plugin instance] "/" type ["-" type instance]
+    #
+    # notes:
+    #   1 not all systems *receiving* metrics honor 'host', you may need to get creative with plugin_ns
+    #   2 pay particular attention to how plugin instance and type instance are used
+    #   3 the 'type's used are a combination of the types in the collectd default types.db and custom types in cadvisor-collectd-types.db
+    #
+
+    def output_cpu_metrics(self, hostname, container_name, container_id, metrics):
+        """ parse cpu metric structure; create a collectd'ish metric name; map metric value(s) to collectd types; output metric """
+        metric_plugin = self.config['ns_plugin'].format(cn=container_name, cid=container_id, hn=self.hostname) + 'cpu'
+        metric_plugin_instance = ''
+        metric_type = ''
+        metric_type_instance = ''
+        metric_name_fmt = "{}/{}{}/{}{}"
+
+        metric_type = 'gauge'
+        metric_type_instance = '-avg'
+        self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), metrics['load_average'])
+
+        metric_type = 'time_ns'
+        for key in ('system', 'total', 'user'):
+            metric_type_instance = '-{}'.format(key)
+            self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), metrics['usage'][key])
+
+        metric_type = 'time_ns'
+        metric_type_instance = ''
+        for i, v in enumerate(metrics['usage']['per_cpu_usage']):
+            metric_plugin_instance = '-{}'.format(i)
+            self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), v)
+
+    def output_memory_metrics(self, hostname, container_name, container_id, metrics):
+        """ parse memory metric structure; create a collectd'ish metric name; map metric value(s) to collectd types; output metric """
+        metric_plugin = self.config['ns_plugin'].format(cn=container_name, cid=container_id, hn=self.hostname) + 'memory'
+        metric_plugin_instance = ''
+        metric_type = ''
+        metric_type_instance = ''
+        metric_name_fmt = "{}/{}{}/{}{}"
+
+        metric_type = 'memory'
+        metric_type_instance = '-usage'
+        self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), metrics['usage'])
+
+        metric_type = 'memory'
+        metric_type_instance = '-working_set'
+        self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), metrics['working_set'])
+
+        metric_type = 'gauge'
+        for item in ('hierarchical', 'container'):
+            item_key = '{}_data'.format(item)
+            metric_plugin_instance = '-{}'.format(item_key)
+            for key in metrics[item_key]:
+                metric_type_instance = '-{}'.format(key)
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), metrics[item_key][key])
+
+    def output_network_metrics(self, hostname, container_name, container_id, metrics):
+        """ parse network metric structure; create a collectd'ish metric name; map metric value(s) to collectd types; output metric """
+        metric_plugin = self.config['ns_plugin'].format(cn=container_name, cid=container_id, hn=self.hostname) + 'net'
+        metric_plugin_instance = ''
+        metric_type = ''
+        metric_type_instance = ''
+        metric_name_fmt = "{}/{}{}/{}{}"
+
+        #
+        # the if_(dropped|packets|octets|errors) collectd types
+        # expect the values to be compound in the form: rx:tx
+        #
+        for i, v in enumerate(metrics):
+            metric_plugin_instance = '-if{}'.format(i)
+            for item in ('dropped', 'packets', 'bytes', 'errors'):
+                rx_key = 'rx_{}'.format(item)
+                tx_key = 'tx_{}'.format(item)
+                metric_type = 'if_{}'.format('octets' if item == 'bytes' else item)
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance),
+                                 '{}:{}'.format(v[rx_key], v[tx_key]))
+
+    def output_diskio_metrics(self, hostname, container_name, container_id, metrics):
+        """ parse diskio metric structure; create a collectd'ish metric name; map metric value(s) to collectd types; output metric """
+        metric_plugin = self.config['ns_plugin'].format(cn=container_name, cid=container_id, hn=self.hostname) + 'blkio'
+        metric_plugin_instance = ''
+        metric_type = ''
+        metric_type_instance = ''
+        metric_name_fmt = "{}/{}{}/{}{}"
+
+        #
+        # see: https://www.kernel.org/doc/Documentation/cgroups/blkio-controller.txt
+        #
+
+        #
+        # times
+        #
+        metric = 'io_time'
+        if metric in metrics:
+            metric_type = 'time_ms'
+            metric_type_instance = '-{}'.format(metric)
+            for device in metrics[metric]:
+                metric_plugin_instance = '-{}_{}'.format(device['major'], device['minor'])
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['stats']['Count'])
+
+        metric_type = 'time_ns'
+        for metric in ('io_wait_time', 'io_service_time'):
+            if metric in metrics:
+                for device in metrics[metric]:
+                    metric_plugin_instance = '-{}_{}'.format(device['major'], device['minor'])
+                    for stat in device['stats']:
+                        metric_type_instance = '-{}_{}'.format(metric, stat)
+                        self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['stats'][stat])
+
+        # bytes
+        metric = 'io_service_bytes'
+        metric_type = 'bytes'
+        if metric in metrics:
+            for device in metrics[metric]:
+                metric_plugin_instance = '-{}_{}'.format(device['major'], device['minor'])
+                for stat in device['stats']:
+                    metric_type_instance = '-{}_{}'.format(metric, stat)
+                    self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['stats'][stat])
+
+        # gauges/counters
+        metric = 'sectors'
+        metric_type = 'gauge'
+        if metric in metrics:
+            metric_type_instance = '-{}'.format(metric)
+            for device in metrics[metric]:
+                metric_plugin_instance = '-{}_{}'.format(device['major'], device['minor'])
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['stats']['Count'])
+
+        metric_type = 'gauge'
+        for metric in ('io_serviced', 'io_merged'):
+            if metric in metrics:
+                for device in metrics[metric]:
+                    metric_plugin_instance = '-{}_{}'.format(device['major'], device['minor'])
+                    for stat in device['stats']:
+                        metric_type_instance = '-{}_{}'.format(metric, stat)
+                        self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['stats'][stat])
+
+        metric = 'io_queued'
+        metric_type = 'counter'
+        if metric in metrics:
+            for device in metrics[metric]:
+                metric_plugin_instance = '-{}_{}'.format(device['major'], device['minor'])
+                for stat in device['stats']:
+                    metric_type_instance = '-{}_{}'.format(metric, stat)
+                    self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['stats'][stat])
+
+    def output_load_metrics(self, hostname, container_name, container_id, metrics):
+        """ parse load metric structure; create a collectd'ish metric name; map metric value(s) to collectd types; output metric """
+        metric_plugin = self.config['ns_plugin'].format(cn=container_name, cid=container_id, hn=self.hostname) + 'load_stats'
+        metric_plugin_instance = ''
+        metric_type = 'gauge'
+        metric_type_instance = ''
+        metric_name_fmt = "{}/{}{}/{}{}"
+
+        for metric in metrics:
+            metric_type_instance = '-{}'.format(metric)
+            self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), metrics[metric])
+
+    def output_filesystem_metrics(self, hostname, container_name, container_id, metrics):
+        """ parse filesystem metric structure; create a collectd'ish metric name; map metric value(s) to collectd types; output metric """
+        metric_plugin = self.config['ns_plugin'].format(cn=container_name, cid=container_id, hn=self.hostname) + 'fs'
+        metric_plugin_instance = ''
+        metric_type = ''
+        metric_type_instance = ''
+        metric_name_fmt = "{}/{}{}/{}{}"
+
+        for device in metrics:
+            device_name = device['device']
+            if device_name[0:19].lower() == '/dev/mapper/docker-':
+                device_name = device_name.replace('/dev/mapper/', '')
+                device_name_parts = device_name.split('-')
+                device_name_parts[-1] = device_name_parts[-1][0:12]
+                device_name = '_'.join(device_name_parts)
+
+            metric_plugin_instance = '-{}'.format(device_name)
+
+            metric_type = 'bytes'
+            for stat in ('capacity', 'usage'):
+                metric_type_instance = '-{}'.format(stat)
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device[stat])
+
+            metric_type = 'time_ms'
+            for stat in ('read_time', 'io_time', 'weighted_io_time', 'write_time'):
+                metric_type_instance = '-{}'.format(stat)
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device[stat])
+
+            metric_type = 'gauge'
+            for stat in ('writes_completed', 'reads_completed', 'writes_merged', 'sectors_written', 'reads_merged', 'sectors_read'):
+                metric_type_instance = '-{}'.format(stat)
+                self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device[stat])
+
+            metric_type = 'counter'
+            metric_type_instance = '-io_in_progress'
+            self.send_metric(metric_name_fmt.format(hostname, metric_plugin, metric_plugin_instance, metric_type, metric_type_instance), device['io_in_progress'])
+
+    def parse_stats(self, hostname, container_name, container_id, stats, fs_metrics=False):
+        """ parcel out the various metric sections to dedicated (isolated) handlers for each of the distinct structures. """
+
+        if stats['has_cpu'] and 'cpu' in self.active_metrics:
+            self.output_cpu_metrics(hostname, container_name, container_id, stats['cpu'])
+
+        if stats['has_memory'] and 'memory' in self.active_metrics:
+            self.output_memory_metrics(hostname, container_name, container_id, stats['memory'])
+
+        if stats['has_network'] and 'network' in self.active_metrics:
+            self.output_network_metrics(hostname, container_name, container_id, stats['network'])
+
+        if stats['has_diskio'] and 'diskio' in self.active_metrics:
+            self.output_diskio_metrics(hostname, container_name, container_id, stats['diskio'])
+
+        if stats['has_load'] and 'load_stats' in self.active_metrics:
+            self.output_load_metrics(hostname, container_name, container_id, stats['load_stats'])
+
+        if stats['has_filesystem'] and fs_metrics:
+            self.output_filesystem_metrics(hostname, container_name, container_id, stats['filesystem'])
+
+    def process_metrics(self):
+        """walk through retrieved CAdvisor metrics output each metric for collectd"""
+        metrics = self.fetch_stats()
+
+        if self.config['system_enabled']:
+            metric_hostname = self.config['ns_host'].format(cn='host', cid='0', hn=self.hostname)
+            self.parse_stats(metric_hostname, 'host', 0, metrics['/'][0], self.config['system_fs_metrics'])
+            for service in self.service_list:
+                for item in metrics:
+                    if service in item:
+                        try:
+                            real_service_name = item.split('/')[-1]
+                        except ValueError:
+                            real_service_name = item
+                        except KeyError:
+                            real_service_name = item
+                        metric_hostname = self.config['ns_host'].format(cn=real_service_name, cid='0', hn=self.hostname)
+                        self.parse_stats(metric_hostname, item.split('/')[-1], 0, metrics[item][0])
+
+        if self.config['docker_enabled']:
+            for docker_container in self.docker_container_list:
+                if docker_container['SliceId']:
+                    metric_hostname = self.config['ns_host'].format(cn=''.join(docker_container['Names']).replace('/', ''), cid=docker_container['Id'][0:12], hn=self.hostname)
+                    self.parse_stats(metric_hostname, ''.join(docker_container['Names']).replace('/', ''), docker_container['Id'][0:12], metrics[docker_container['SliceId']][0])
+
+
+def main(argv):
+    """expected to be called by Collectd Exec plugin (which sets environment variables HOSTNAME and INTERVAL)"""
+    print("start " + strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()), file=sys.stderr)
+
+    #
+    # default config
+    #
+    config = {
+        'cadvisor_container': 'cadvisor',
+        'docker_enabled': True,
+        'docker_containers': ['*'],
+        'system_enabled': True,
+        'system_fs_metrics': False,
+        'system_services': [],
+        'metrics_cpu': ['all'],
+        'metrics_diskio': ['all'],
+        'metrics_load_stats': ['all'],
+        'metrics_memory': ['all'],
+        'metrics_network': ['all'],
+        'ns_host': '{hn}',
+        'ns_plugin': None
+    }
+    parser = argparse.ArgumentParser(usage='%(prog)s [-h|--help] <config_file>',
+                                     description='Send System and Docker container metrics, from CAdvsisor, to Collectd')
+    parser.add_argument('config_file',
+                        type=argparse.FileType('r'),
+                        help='Configuration file.')
+    args = parser.parse_args()
+    opt_config = yaml.safe_load(args.config_file.read())
+    config.update(opt_config)
+
+    config['system_services'] = config['system_services'] if type(config['system_services']).__name__ == 'list' else list()
+
+    cad = CAdvisor(config)
+    return(cad.process_metrics())
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

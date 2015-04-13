@@ -1,0 +1,19 @@
+#
+# http writer plugin: https://collectd.org/documentation/manpages/collectd.conf.5.shtml#plugin_write_http
+#
+LoadPlugin write_http
+
+<Plugin "write_http">
+  <URL "http://example.com/post-collectd">
+    # User "collectd"
+    # Password "weCh3ik0"
+    # VerifyPeer true
+    # VerifyHost true
+    # CACert "file"
+    # Format "Command"
+    Format "JSON"
+    StoreRates false
+  </URL>
+</Plugin>
+
+

@@ -1,0 +1,18 @@
+#
+# network writer plugin: https://collectd.org/documentation/manpages/collectd.conf.5.shtml#plugin_network
+#
+LoadPlugin Network
+
+<Plugin "network">
+  # Export to an internal server
+  # (demonstrates usage without additional options)
+  Server "FQDN or IP"
+
+  # Export to an external server
+  # (demonstrates usage with signature options)
+#  <Server "collectd.external.tld">
+#    SecurityLevel "sign"
+#    Username "myhostname"
+#    Password "ohl0eQue"
+#  </Server>
+</Plugin>

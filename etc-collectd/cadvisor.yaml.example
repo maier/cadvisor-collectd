@@ -1,0 +1,183 @@
+---
+###########################################################
+# CAdvisor specific settings
+###########################################################
+# troubleshooting: curl -s "$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' cadvisor):8080/api/v2.0/machine" | python -m json.tool
+
+# cadvisor_container: (name|id)
+# - container name or ID (see 'docker ps' output)
+# - will derive 'ip:port' from struct retreived
+#   from docker. by default CAdvisor only exposes
+#   one port 8080. therefore, this will use
+#   NetworkSettings.IPAddress and first TCP port
+#   found in Config.ExposedPorts.
+# examples:
+#   cadvisor_container: cadvisor
+#   cadvisor_container: c83f389eccce
+#
+cadvisor_container: cadvisor
+
+# cadvisor_address: ip[:port]
+# - ip address, optional port of the cadvisor container
+# - default: none for ip, 8080 for port
+# examples:
+#   cadvisor_address: 127.0.0.1
+#   cadvisor_address: 127.0.0.1:8080
+# NOTE: use of cadvisor_address: takes precedence over cadvisor_container:.
+#
+#cadvisor_address: 127.0.0.1:8080
+
+
+
+###########################################################
+# Host system metrics
+###########################################################
+
+# system_enabled: (TRUE|false)
+# - include host system metrics. '/' in cadvisor
+#
+system_enabled: true
+
+# system_fs: (true|FALSE)
+# - include 'filesystem' items from '/' in cadvisor.
+#
+system_fs_metrics: false
+
+# system_services: list(string)
+# - default none (empty list)
+# - which subcontainers in /system.slice to include
+#   when system_enabled: is TRUE.
+# - note, these are simply strings - so any service
+#   which contains the string will be included. be
+#   more specific if needed. (e.g. 'docker.service' rather than 'docker')
+# - see: curl -s "$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' cadvisor):8080/api/v1.3/containers/system.slice" | python -c 'import json,sys,pprint;obj=json.load(sys.stdin);pprint.pprint(obj["subcontainers"]);'
+#
+system_services:
+  # strings (e.g. 'mesos' would include any service with 'mesos' in the name)
+  #- mesos
+  #- marathon
+  # or explicit
+  #- docker.service
+  #- mesos-master.service
+  #- mesos-slave.service
+  #- marathon.service
+  #- etcd.service
+  #- fleet.service
+
+# NOTES:
+#   1 if certain metrics do not show up for system services, check:
+#       * settings of DefaultCPUAccounting, DefaultBlockIOAccounting, and DefaultMemoryAccounting in /etc/systemd/system.conf
+#       * settings of CPUAccouting, MemoryAccounting, and BlockIOAccounting in the service unit file
+
+
+############################################################
+# Docker specific settings
+############################################################
+
+# docker_enabled: (TRUE|false)
+# - include docker container metrics
+#
+docker_enabled: true
+
+# docker_socket: <path>
+# - the location of the docker socket bound to the container when it was started
+# troubleshooting: echo -e "GET /containers/json HTTP/1.1\r\n" | socat unix-connect:/var/run/docker.sock -
+#
+docker_socket: "/var/run/docker.sock"
+
+# docker_containers: list(name|id)
+# - default: "*"
+# - list of container names or IDs (see docker ps output) or "*" to include all containers
+# - metrics will be gathered from this explicit list of containers.
+#   note, if "*" is in list, all containers will be included, any other items in the list
+#   will be ignored.
+#
+docker_containers:
+  - "*"
+  # container names (names will be prefixed with '/')
+  #- cadvisor
+  # or IDs
+  #- 2e7390098010
+
+
+###########################################################
+# namespace
+#
+# apply grouping across cluster/infrastructure as well as carrying
+# metrics across persistent instances with ephemeral execution.
+#
+# macros:
+#   {cn}  container name (as in, from 'docker ps' output name column).
+#   {cid} container id (as in, from 'docker ps' output container id column, 12 character hex string).
+#   {hn}  the hostname as set by collectd when exec plugin runs command.
+#
+# defaults:
+#   ns_host:    "{hn}"
+#   ns_plugin:  not altered - note, you must provide the separator. this value
+#               will prefix the derived plugin name. (e.g. cpu, memory, etc.)
+#
+# examples:
+#   ns_host: "{cn}.{hn}"
+#
+#   ns_host: "{hn}"
+#   ns_plugin: "{cn}." (if container name is 'http' metric plugin would be 'http.cpu', 'http.memory', etc.)
+#
+ns_host: "{hn}"
+ns_plugin: "{cn}."
+
+
+###########################################################
+# define metrics which should be collected and sent to Collectd
+#
+# options for each section:
+# - all (default), all available metrics from section
+# - none, no metrics from section
+# - list of specific metrics from section
+#
+metrics_cpu:
+  - all
+  #- none
+  #- load_average
+  #- usage
+  #- system
+  #- total
+  #- user
+metrics_diskio:
+  - all
+  #- none
+  #- io_merged
+  #- io_queued
+  #- io_service_bytes
+  #- io_service_time
+  #- io_serviced
+  #- io_time
+  #- io_wait_time
+  #- sectors
+metrics_load_stats:
+  - all
+  #- none
+  #- nr_sleeping
+  #- nr_running
+  #- nr_stopped
+  #- nr_uninterruptible
+  #- nr_io_wait
+metrics_memory:
+  - all
+  #- none
+  #- usage
+  #- working_set
+  #- container_data
+  #- hierarchial_data
+metrics_network:
+  - all
+  #- none
+  #- rx_bytes
+  #- tx_bytes
+  #- rx_dropped
+  #- tx_dropped
+  #- rx_errors
+  #- tx_errors
+  #- rx_packets
+  #- tx_packets
+
+# END

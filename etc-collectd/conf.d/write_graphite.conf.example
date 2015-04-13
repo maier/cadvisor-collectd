@@ -1,0 +1,19 @@
+#
+# graphite writer plugin: https://collectd.org/documentation/manpages/collectd.conf.5.shtml#plugin_write_graphite
+#
+LoadPlugin write_graphite
+
+<Plugin write_graphite>
+  <Node "example">
+    Host "localhost"
+    Port "2003"
+    Protocol "tcp"
+    LogSendErrors true
+    # Prefix "collectd"
+    # Postfix "collectd"
+    # EscapeCharacter "_"
+    StoreRates false
+    # SeparateInstances false
+    # AlwaysAppendDS false
+  </Node>
+</Plugin>

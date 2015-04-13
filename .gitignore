@@ -1,0 +1,9 @@
+.DS_Store
+etc-collectd/cadvisor.yaml
+etc-collectd/collectd.conf
+# ignore test config files
+etc-collectd/conf.d/*.conf
+# except the cadvsior config
+!etc-collectd/conf.d/cadvisor.conf
+# temporary files
+tmp
