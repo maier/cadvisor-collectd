@@ -14,5 +14,5 @@
 Interval 60
 
 TypesDB "/usr/share/collectd/types.db"
-TypesDB "/etc/collectd/cadvisor-types.db"
+TypesDB "/opt/collectd/cadvisor-types.db"
 Include "/etc/collectd/conf.d/*.conf"
