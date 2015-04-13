@@ -9,7 +9,7 @@ from time import strftime, gmtime
 import argparse
 import docker
 import json
-import os.environ
+import os
 import socket
 import sys
 import urllib2
