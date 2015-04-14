@@ -3,7 +3,7 @@
 </LoadPlugin>
 
 <Plugin "python">
-    ModulePath "/opt/collectd/mesos/"
+    ModulePath "/opt/collectd/python/"
 
     Import "mesos-slave"
 
