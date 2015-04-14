@@ -1,0 +1,3 @@
+[submodule "collectd-mesos"]
+	path = collectd-mesos
+	url = https://github.com/maier/collectd-mesos.git

@@ -1,0 +1,17 @@
+<LoadPlugin "python">
+    Globals true
+</LoadPlugin>
+
+<Plugin "python">
+    ModulePath "/opt/collectd/mesos/"
+
+    Import "mesos-master"
+
+    <Module "mesos-master">
+        Host "localhost"
+        Port 5050
+        Verbose false
+        Version "0.21.0"
+    </Module>
+</Plugin>
+
