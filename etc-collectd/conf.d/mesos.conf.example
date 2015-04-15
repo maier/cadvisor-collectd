@@ -1,0 +1,23 @@
+<LoadPlugin "python">
+    Globals true
+</LoadPlugin>
+
+<Plugin "python">
+    ModulePath "/opt/collectd/python/"
+
+#    Import "mesos-master"
+#    <Module "mesos-master">
+#        Host "docker:gateway"
+#        Port 5050
+#        # TrackingName ""
+#    </Module>
+
+
+#    Import "mesos-slave"
+#    <Module "mesos-slave">
+#        Host "docker:gateway"
+#        Port 5051
+#    </Module>
+
+</Plugin>
+
