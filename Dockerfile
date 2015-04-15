@@ -17,7 +17,7 @@ COPY cadvisor-types.db /opt/collectd/
 COPY mesos/mesos-cli /opt/collectd/python/
 COPY mesos/mesos-cli.yaml /opt/collectd/python/
 COPY mesos/mesos.py /opt/collectd/python/
-COPY mesos/mesos_python.py /opt/collectd/python/
+COPY mesos/mesos_collectd.py /opt/collectd/python/
 COPY mesos/mesos-master.py /opt/collectd/python/
 COPY mesos/mesos-slave.py /opt/collectd/python/
 COPY mesos-types.db /opt/collectd/
