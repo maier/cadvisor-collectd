@@ -1,0 +1,88 @@
+---
+#
+# metrics definitions
+#
+# the basic premise is to only define metrics which
+# are *not* collectd type 'gauge'. providing a more
+# dynamic collection method.
+#
+# 1. metrics will show up when they are in /metrics/snapshot
+# 2. changes to upstream metrics do not require the plugin to
+#    be changed, only the configuration.
+#
+# format:
+#   mesos_metric_name: collectd_type
+#
+#   mesos_metric_name:
+#     - name of the metric as returned by /metrics/snapshot
+#
+#   collectd_type:
+#     1. as defined in Collectd's default types.db
+#	    2. as defined in in mesos-types.db (custom types added for mesos)
+#     3. ignore, *do not* submit metric to collectd
+#        (e.g. master/elected - information,
+#        system/mem_free_bytes, system/mem_total_bytes - redundant
+#        if system level metrics are already being collectd by cadvisor)
+#
+default_metric_type: gauge
+
+master/cpus_percent: percent
+master/disk_percent: percent
+master/dropped_messages: counter
+master/elected: ignore
+master/invalid_framework_to_executor_messages: counter
+master/invalid_status_update_acknowledgements: counter
+master/invalid_status_updates: counter
+master/mem_percent: percent
+master/messages_authenticate': counter
+master/messages_deactivate_framework': counter
+master/messages_exited_executor': counter
+master/messages_framework_to_executor': counter
+master/messages_kill_task': counter
+master/messages_launch_tasks': counter
+master/messages_reconcile_tasks': counter
+master/messages_register_framework': counter
+master/messages_register_slave': counter
+master/messages_reregister_framework': counter
+master/messages_reregister_slave': counter
+master/messages_resource_request: counter
+master/messages_revive_offers': counter
+master/messages_status_update': counter
+master/messages_status_update_acknowledgement': counter
+master/messages_unregister_framework': counter
+master/messages_unregister_slave': counter
+master/recovery_slave_removals': counter
+master/slave_registrations': counter
+master/slave_removals': counter
+master/slave_reregistrations': counter
+master/tasks_failed': counter
+master/tasks_finished': counter
+master/tasks_killed': counter
+master/tasks_lost': counter
+master/uptime_secs': uptime
+master/valid_framework_to_executor_messages': counter
+master/valid_status_update_acknowledgements': counter
+master/valid_status_updates': counter
+registrar/registry_size_bytes: bytes
+slave/cpus_percent': percent
+slave/disk_percent': percent
+slave/executors_terminated': counter
+slave/executors_terminated': counter
+slave/invalid_framework_messages': counter
+slave/invalid_status_updates': counter
+slave/mem_percent': percent
+slave/recovery_errors': counter
+slave/tasks_failed': counter
+slave/tasks_finished': counter
+slave/tasks_killed': counter
+slave/tasks_lost': counter
+slave/valid_framework_messages': counter
+slave/valid_status_updates': counter
+system/cpus_total: ignore
+system/load_15min: ignore
+system/load_1min: ignore
+system/load_5min: ignore
+system/mem_free_bytes': bytes
+system/mem_free_bytes: ignore
+system/mem_total_bytes': bytes
+system/mem_total_bytes: ignore
