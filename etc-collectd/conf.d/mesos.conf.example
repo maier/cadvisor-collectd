@@ -10,6 +10,8 @@
 #        Host "docker:gateway"
 #        Port 5050
 #        # TrackingName ""
+#        MetricConfigFile "/etc/collectd/mesos.yaml"
+#        # Separator ""
 #    </Module>
 
 
@@ -17,6 +19,8 @@
 #    <Module "mesos-slave">
 #        Host "docker:gateway"
 #        Port 5051
+#        MetricConfigFile "/etc/collectd/mesos.yaml"
+#        # Separator ""
 #    </Module>
 
 </Plugin>
