@@ -25,7 +25,6 @@ class MesosCollectd(Mesos):
 
     def dispatch_metric(self, metric_type, metric_type_instance, metric_value):
         metric = collectd.Values()
-        metric.hostname = self.hostname
         metric.plugin = self.plugin
         metric.plugin_instance = self.plugin_instance
         metric.type = metric_type
@@ -33,5 +32,5 @@ class MesosCollectd(Mesos):
         metric.values = [metric_value]
         metric.dispatch()
         if self.tracking_enabled:
-            metric.hostname = self.config['trackingname']
+            metric.host = self.tracking_name
             metric.dispatch()

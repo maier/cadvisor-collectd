@@ -3,6 +3,7 @@ import sys
 from abc import ABCMeta, abstractmethod
 
 import json
+import yaml
 import urllib2
 import socket
 import docker
@@ -29,14 +30,25 @@ class Mesos(object):
         self.plugin_instance = self.config['profile']
         self.active_master_key = 'master/elected'
         self.tracking_enabled = False
+        try:
+            self.tracking_name = self.config['trackingname']
+        except KeyError:
+            self.tracking_name = None
 
+        self.port = self.config['port']
         # get mesos host (ip) from docker if configured to do so
         if self.config['host'][0:6].lower() == 'docker':
             self.get_host_from_docker()
+        else:
+            self.host = self.config['host']
 
-        self.url = 'http://{}:{}/metrics/snapshot'.format(self.config['host'], self.config['port'])
+        self.url = 'http://{}:{}/metrics/snapshot'.format(self.host, self.port)
         self.mesos_separator = '/'
-        self.separator = self.config['metric_instance_separator'] if 'metric_instance_separator' in self.config else None
+        self.separator = self.config['separator'] if 'separator' in self.config else None
+
+        # load mesos metrics configuration
+        f = open(self.config['metricconfigfile'], 'r')
+        config['metrics_config'] = yaml.safe_load(f)
 
     def log(self, message, level='INFO'):
         """
@@ -116,7 +128,7 @@ class Mesos(object):
         # disable tracking by default (master may have changed since last run)
         # enable it if this is a) a master, b) the active master, and c) a tracking name has been set
         self.tracking_enabled = False
-        if self.config['profile'] == 'master' and self.config['trackingname']:
+        if self.config['profile'] == 'master' and self.tracking_name:
             self.tracking_enabled = self.active_master_key in metrics and metrics[self.active_master_key] == 1
 
         for metric in metrics:

@@ -84,11 +84,6 @@ def main(argv):
     opt_config = yaml.safe_load(args.cli_config_file.read())
     config.update(opt_config)
 
-    # load mesos metrics configuration
-    f = open(opt_config['metric_config_file'], 'r')
-    opt_config = yaml.safe_load(f)
-    config['metrics_config'] = opt_config
-
     mi = MesosClient(config)
     mi.hostname = 'CLI-TEST'
     # mi.show_config()

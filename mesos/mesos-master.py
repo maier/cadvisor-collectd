@@ -7,7 +7,7 @@ class MesosMaster(MesosCollectd):
     def __init__(self, config):
         super(MesosMaster, self).__init__(config)
         self.name = self.__class__.__name__
-        self.log_info('{} configuring.'.format(self.name))
+        self.log_info('Configuring {} plugin.'.format(self.name))
 
 #
 # mesos master metrics collector python plugin for collectd
