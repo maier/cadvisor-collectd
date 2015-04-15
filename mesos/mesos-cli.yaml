@@ -16,16 +16,18 @@ host: "127.0.0.1"
 #
 port: 5050
 #
+# same as block Separator
 # optional, separator to use for mesos metric names when using them as collectd type-instance names
 #
-metric_instance_separator: "."
+separator: "."
 #
+# same as block MetricConfigFile
 # the mesos metrics configuration file (would normally be in /etc/collectd/mesos.yaml)
 #
-metric_config_file: "/home/vagrant/shared/src/tmp/mesos.yaml"
+metricconfigfile: "/home/vagrant/shared/src/tmp/mesos.yaml"
 #
 # same as block TrackingName
-# - maintain metric continuity at the service level, regardless of the physical host is the active master currently.
+# - maintain metric continuity at the service level, regardless of which physical host is running the active master currently.
 # - send master metrics using common, virtual hostname/identifier.
 #
 trackingname: "mesos.master"
