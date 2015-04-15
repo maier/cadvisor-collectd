@@ -8,10 +8,8 @@
     Import "mesos-slave"
 
     <Module "mesos-slave">
-        Host "localhost"
+        Host "docker:gateway"
         Port 5051
-        Verbose false
-        Version "0.21.0"
     </Module>
 </Plugin>
 

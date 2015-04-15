@@ -8,10 +8,9 @@
     Import "mesos-master"
 
     <Module "mesos-master">
-        Host "localhost"
+        Host "docker:gateway"
         Port 5050
-        Verbose false
-        Version "0.21.0"
+        #TrackingName ""
     </Module>
 </Plugin>
 
