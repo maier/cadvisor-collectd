@@ -32,4 +32,4 @@ def reader():
 
 
 collectd.register_config(configurator)
-collectd.register_reader(reader)
+collectd.register_read(reader)
