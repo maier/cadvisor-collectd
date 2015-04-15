@@ -1,0 +1,31 @@
+---
+# mesos cli configuration
+# this encapsulates the configuration items that would be provided by collectd in the registered config function
+#
+# profile is not sent by collectd, it is a reflection of which configuration/module pair are used 'mesos-master' and 'mesos-slave'
+# these modules have their respective 'master'/'slave' value hard coded.
+profile: "master"
+#
+# same as block Host
+#
+host: "127.0.0.1"
+#
+# same as block Port
+# mesos-master: 5050
+# mesos-slave: 5051
+#
+port: 5050
+#
+# optional, separator to use for mesos metric names when using them as collectd type-instance names
+#
+metric_instance_separator: "."
+#
+# the mesos metrics configuration file (would normally be in /etc/collectd/mesos.yaml)
+#
+metric_config_file: "/home/vagrant/shared/src/tmp/mesos.yaml"
+#
+# same as block TrackingName
+# - maintain metric continuity at the service level, regardless of the physical host is the active master currently.
+# - send master metrics using common, virtual hostname/identifier.
+#
+trackingname: "mesos.master"

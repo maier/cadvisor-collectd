@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+# from time import strftime, gmtime
+import sys
+import argparse
+import yaml
+import os
+
+from mesos import Mesos
+
+#
+# environment variables set by Collectd when calling from Exec plugin
+# for testing - set them or leave them unset
+#
+COLLECTD_ENV_HOSTNAME = 'COLLECTD_HOSTNAME'
+COLLECTD_ENV_INTERVAL = 'COLLECTD_INTERVAL'
+
+
+class MesosClient(Mesos):
+
+    def __init__(self, config):
+        super(MesosClient, self).__init__(config)
+
+        self.name = self.__class__.__name__
+        self.hostname = 'NOT_PROVIDED'
+        self.interval = 60
+        if COLLECTD_ENV_HOSTNAME in os.environ and len(os.environ[COLLECTD_ENV_HOSTNAME]) > 0:
+            self.hostname = os.environ[COLLECTD_ENV_HOSTNAME]
+        if COLLECTD_ENV_INTERVAL in os.environ:
+            self.interval = os.environ[COLLECTD_ENV_INTERVAL]
+
+    def log(self, message, level='INFO'):
+        super(MesosClient, self).log(message, level)
+
+    def log_error(self, message):
+        self.log(message, 'ERR')
+
+    def log_warning(self, message):
+        self.log(message, 'ERR')
+
+    def log_notice(self, message):
+        self.log(message)
+
+    def log_info(self, message):
+        self.log(message)
+
+    def log_debug(self, message):
+        self.log(message)
+
+    def dispatch_metric(self, metric_type, metric_type_instance, metric_value):
+        metric_fmt = 'PUTVAL {}/{}-{}/{}-{} INTERVAL={} N:{}'
+        print(metric_fmt.format(self.hostname, self.plugin, self.plugin_instance, metric_type, metric_type_instance, self.interval, metric_value))
+        if self.config['trackingname']:
+            print(metric_fmt.format(self.config['trackingname'], self.plugin, self.plugin_instance, metric_type, metric_type_instance, self.interval, metric_value))
+
+    def show_config(self):
+        self.log_debug(self.config)
+        self.log_debug('Mesos URL: {}'.format(self.url))
+        self.log_debug('plugin: {}-{}'.format(self.plugin, self.plugin_instance))
+        self.log_debug('Hostname: {}'.format(self.hostname))
+        self.log_debug('Interval: {}'.format(self.interval))
+
+
+def main(argv):
+    """
+    command line version of mesos Collectd python plugin (intended purpose: debugging, troubleshooting, investigation, curiosity, etc.)
+    """
+    # print(strftime("start %a, %d %b %Y %H:%M:%S +0000", gmtime()), file=sys.stderr)
+
+    #
+    # default config (see mesos-cli.yaml)
+    #
+    config = {}
+
+    parser = argparse.ArgumentParser(usage='%(prog)s [-h|--help] <config_file>',
+                                     description='Collect and print metrics from Mesos master and slave endpoints')
+    parser.add_argument('cli_config_file',
+                        type=argparse.FileType('r'),
+                        help='CLI Configuration file.')
+    args = parser.parse_args()
+
+    # load cli configuration
+    opt_config = yaml.safe_load(args.cli_config_file.read())
+    config.update(opt_config)
+
+    # load mesos metrics configuration
+    f = open(opt_config['metric_config_file'], 'r')
+    opt_config = yaml.safe_load(f)
+    config['metrics_config'] = opt_config
+
+    mi = MesosClient(config)
+    mi.hostname = 'CLI-TEST'
+    # mi.show_config()
+    metrics = mi.fetch_metrics()
+    # print(metrics)
+    mi.emit_metrics(metrics)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
