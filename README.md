@@ -105,14 +105,32 @@ This configures the script which gathers metrics from CAdvisor and emits them to
 
 ### Mesos
 
-Enabling and configuring the [Mesos](http://mesos.apache.org/) plugin(s). The main assets involved in the Mesos plugin are: `etc-collectd/mesos.yaml`, `etc-collectd/mesos-types.db`, and `etc-collectd/conf.d/mesos.conf`.
+Enabling and configuring the [Mesos](http://mesos.apache.org/) plugin(s) is pretty straight-forward and many settings are defaulted to acceptable values.
 
-1. `cd etc-collectd && cp mesos.yaml.example cadvisor.yaml`
-2. Edit `cadvisor.yaml`
+#### Mesos metrics configuration
+
+Controls the mesos to collectd metric type translations. Provides facility to ignore specific mesos metrics (information, redundant, etc.).
+
+1. `cd etc-collectd && cp mesos.yaml.example mesos.yaml`
+2. Edit `mesos.yaml`
 3. Read descriptions and update settings accordingly.
+
+#### Mesos plugin configuration
+
 1. `cd etc-collectd/conf.d && cp mesos.conf.example mesos.conf`
 1. Edit `mesos.conf`
-2. Update the `Host` and `Port` accordingly for the **master** and **slave** sections.
+1. Uncomment the master, slave, or both section(s).
+1. Update settings accordingly.
+   * `Host` - IP of target mesos host
+      * IP (e.g. 127.0.0.1)
+      * `docker:gateway` to use the value of *NetworkSettings.Gateway* for the current container. (as in, from `docker inspect collectd`)
+      * `docker/container_name` to use the value of *NetworkSettings.IPAddress* for the named container. (as in, from `docker inspect container_name`)
+   * `Port` - port to use (master default: 5050, slave default: 5051)
+   * `Separator` - optional, character to use to separate elements of a mesos metric name when it is used as collectd type-instance. (e.g. '.' instead of the mesos default of '/')
+   *  `TrackingName` - applies **only** to active mesos master
+      1. maintain metric continuity at the service level, regardless of which physical host is running the active master currently.
+      2. send master metrics using common, virtual hostname/identifier.
+   * `MetricConfigFile` - location of mesos metric configuration file. Should be fine at its default of `/etc/collectd/mesos.yaml`.
 
 ## Starting
 
