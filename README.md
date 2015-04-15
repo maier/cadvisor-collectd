@@ -2,18 +2,34 @@
 
 Collecting host and container metrics using [CAdvisor](https://registry.hub.docker.com/u/google/cadvisor/) and [Collectd](https://github.com/collectd/collectd/).
 
-Motivation, I needed a quick Collectd solution to gather host and container metrics without installing or running software directly on the hosting system (outside of a container).
+## Problem
 
-Collectd is a good solution for gathering metrics from many different sources. It has a wealth of plugins for both active and passive metric collection. There are also plugins which support forwarding metrics to various backends. Not to mention, for me at least, it is already in place as the metrics collection and transport solution.
+* Collect metrics from host system, running containers, and processes exposing metrics running in containers.
+* Send metrics to multiple external (from host) systems simultaneously.
+* Run in a container, not on the host system.
 
-But, Collectd does not currently provide plugins to:
+## Solution: Collectd and CAdvisor
 
-* collect metrics from the host when Collectd itself is running in a container (not that I found anyway).
-* collect metrics from (other) containers running on the host system.
+1. Low adoption friction -- Collectd is already in-place as the solution for metrics collection and transport [where I work].
+1. Flexibility, Collectd
+   * Offers large number of plugins to support collection of metrics.
+   * Various options for creating custom metrics collectors.
+   * Offers a large number of plugins to send metrics to various external systems.
+   * Collectd's native transport is supported by many such systems.
+1. CAdvisor
+   * Collectd has no inherent capability to inspect the host system [from a container] nor other containers.
+   * Exposes host system and container metrics via an API which can be easily leveraged.
+   * Offers near real-time visibility into a running system, if exposed, providing a powerful interactive troubleshooting tool.
 
-CAdvisor proved a good solution for exposing a base set of metrics from both the host system as well as the other ([Docker](https://github.com/docker/docker)) containers.
+### Drawbacks
 
-## Usage
+1. It is a more complex solution, with complexity comes fragility.
+1. CAdvisor adds additional load to a system.
+
+As alternatives surface they will be investigated from the perspective of simplifying the overall solution and reducing load on the host system.
+
+
+# Usage
 
 Since Collectd configurations are dynamic and target specific, a mounted volume is used initially. This requirement will be eliminated as configuration support via [etcd](https://coreos.com/using-coreos/etcd/) and [consul](https://www.consul.io/) is added. For now the configurations are distributed through current orchestration methods (ansible, puppet, chef, salt, etc.).
 
@@ -81,11 +97,22 @@ InfluxDB also has a native Collectd plugin which can be used by this configurati
 
 ### Collectd CAdvisor plugin
 
-This configures the script which gathers metrics from CAdvisor and emits them to Collectd. The documentation and descriptions of the settings are contained within the YAML file.
+This configures the script which gathers metrics from CAdvisor and emits them to Collectd. The documentation and descriptions of the settings are contained within the YAML file. The CAdvisor script is intentionally an *Exec* plugin script. Electing this method versus a direct *Python* plugin module makes verifying configurations and debugging more straight-forward.
 
 1. `cd etc-collectd && cp cadvisor.yaml.example cadvisor.yaml`
 2. Edit `cadvisor.yaml`
 3. Read descriptions and update settings accordingly.
+
+### Mesos
+
+Enabling and configuring the [Mesos](http://mesos.apache.org/) plugin(s). The main assets involved in the Mesos plugin are: `etc-collectd/mesos.yaml`, `etc-collectd/mesos-types.db`, and `etc-collectd/conf.d/mesos.conf`.
+
+1. `cd etc-collectd && cp mesos.yaml.example cadvisor.yaml`
+2. Edit `cadvisor.yaml`
+3. Read descriptions and update settings accordingly.
+1. `cd etc-collectd/conf.d && cp mesos.conf.example mesos.conf`
+1. Edit `mesos.conf`
+2. Update the `Host` and `Port` accordingly for the **master** and **slave** sections.
 
 ## Starting
 
