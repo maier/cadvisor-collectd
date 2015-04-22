@@ -1,0 +1,5 @@
+LoadPlugin Exec
+
+<Plugin exec>
+	Exec "nobody:docker" "/opt/collectd/mesos-cli" "/etc/collectd/mesos-cli.yaml"
+</Plugin>

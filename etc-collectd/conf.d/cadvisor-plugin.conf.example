@@ -1,0 +1,16 @@
+<LoadPlugin "python">
+    Globals true
+</LoadPlugin>
+
+<Plugin "python">
+    ModulePath "/opt/collectd/python/"
+
+    Import "cadvisor-metrics"
+    <Module "cadvisor-metrics">
+        Host "docker/cadvisor"
+        # Port 8080
+        ConfigFile "/etc/collectd/cadvisor.yaml"
+    </Module>
+
+</Plugin>
+
