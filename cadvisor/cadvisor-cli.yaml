@@ -1,0 +1,27 @@
+---
+# configuration options which reflect what collectd would pass in python plugin module config
+#
+# host: string, ip or docker/(name|id)
+# - ip, will use designated ip to connect to cadvisor container
+# - docker/(name|id), will retrieve information from the specified container
+#     ip - like `docker inspect -f "{{ .NetworkSettings.IPAddress }}" <(name|id)>`
+#     port - like `docker inspect -f "{{ .Config.ExposedPorts }}" <(name|id)>`, uses first TCP port in list
+#     Note, when using the 'docker/...' form, port in Config.ExposedPorts takes precedence.
+# - examples:
+#   host: "docker/cadvisor"
+#   host: "docker/c83f389eccce"
+#   host: "127.0.0.1"
+#
+host: "docker/cadvisor"
+#
+# port: string, port number for cadvisor
+# - default port is 8080
+#
+# port: "8080"
+#
+# config_file: string, pathspec for cadvisor.yaml
+# - default config file location /etc/collectd/cadvisor.yaml
+#
+# config_file: "/etc/collectd/cadvisor.yaml"
+config_file: "cadvisor.yaml"
+

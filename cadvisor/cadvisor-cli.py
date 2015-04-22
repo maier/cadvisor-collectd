@@ -1,0 +1,137 @@
+#!/usr/bin/env python
+
+#
+# Collectd exec script to gather metrics from CAdvisor and output them for Collectd
+#
+
+from __future__ import print_function
+import os
+import sys
+import argparse
+import yaml
+
+lib_dir = os.path.dirname(os.path.abspath(__file__)) + '/python'
+if not os.path.exists(lib_dir):
+    print('Unable to find module path "{}"'.format(lib_dir))
+    sys.exit(1)
+
+sys.path.append(lib_dir)
+from cadvisor import CAdvisor
+
+#
+# environment variables set by Collectd
+#
+COLLECTD_ENV_HOSTNAME = 'COLLECTD_HOSTNAME'
+COLLECTD_ENV_INTERVAL = 'COLLECTD_INTERVAL'
+
+
+class CAdvisorClient(CAdvisor):
+
+    def __init__(self, config):
+        super(CAdvisorClient, self).__init__(config.get('host', None), config.get('port', None), config.get('config_file', None))
+
+        self.name = self.__class__.__name__
+        self.hostname = 'NOT_PROVIDED'
+        self.interval = 60
+        if COLLECTD_ENV_HOSTNAME in os.environ and len(os.environ[COLLECTD_ENV_HOSTNAME]) > 0:
+            self.hostname = os.environ[COLLECTD_ENV_HOSTNAME]
+        if COLLECTD_ENV_INTERVAL in os.environ:
+            self.interval = os.environ[COLLECTD_ENV_INTERVAL]
+
+    def log(self, message, level='INFO'):
+        super(CAdvisorClient, self).log(message, level)
+
+    def log_error(self, message):
+        self.log(message, 'ERR')
+
+    def log_warning(self, message):
+        self.log(message, 'ERR')
+
+    def log_notice(self, message):
+        self.log(message)
+
+    def log_info(self, message):
+        self.log(message)
+
+    def log_debug(self, message):
+        self.log(message)
+
+    def dispatch_metric(self, container_name, container_id, plugin, plugin_instance, metric_type, type_instance, metric_value):
+        hostname = self.hostname
+        interval = self.interval
+
+        # apply any 'name spec' fixups
+        host_spec = self.gen_host_name(hostname, container_name, container_id)
+        plugin_spec = self.gen_plugin_name(hostname, container_name, container_id, plugin)
+        if plugin_instance:
+            plugin_spec = '{}-{}'.format(plugin, plugin_instance)
+
+        type_spec = metric_type
+        if type_instance:
+            type_spec = '{}-{}'.format(metric_type, type_instance)
+
+        print('PUTVAL {}/{}/{} INTERVAL={} N:{}'.format(host_spec, plugin_spec, type_spec, interval, ':'.join(metric_value)))
+
+    def show_config(self):
+        self.set_cadvisor_connect_info()
+        self.log_debug('Config Host      : {}'.format(self.config_host))
+        self.log_debug('Running Host     : {}'.format(self.host))
+        self.log_debug('Config Port      : {}'.format(self.config_port))
+        self.log_debug('Running Port     : {}'.format(self.config_port))
+        self.log_debug('Config file      : {}'.format(self.config_file))
+        self.log_debug('Running config   : {}'.format(self.config))
+        self.log_debug('System enabled   : {}'.format(self.system_enabled))
+        self.log_debug('System fs metrics: {}'.format(self.system_fs_metrics))
+        self.log_debug('Docker socket    : {}'.format(self.docker_socket))
+        self.log_debug('Docker enabled   : {}'.format(self.docker_enabled))
+        self.log_debug('Collectd Hostname: {}'.format(self.hostname))
+        self.log_debug('Collectd Interval: {}'.format(self.interval))
+        self.log_debug('Host namespec    : "{}"'.format(self.host_namespec))
+        self.log_debug('Plugin namespec  : "{}"'.format(self.plugin_namespec))
+        self.log_debug('Service list     : {}'.format(self.service_list))
+        self.log_debug('Docker list      : {}'.format(self.docker_container_config))
+        self.log_debug('Active metrics   : {}'.format(self.active_metrics))
+
+
+def main(argv):
+    """
+    command line version of CAdvisor Collectd python plugin (intended purpose: debugging, troubleshooting, investigation, curiosity, etc.)
+    """
+
+    #
+    # default config (see cadvisor-cli.yaml)
+    #
+    config = {}
+
+    parser = argparse.ArgumentParser(usage='%(prog)s [-h|--help] [-s|--show] <config_file>',
+                                     description='Collect and print metrics from CAdvisor endpoint')
+    parser.add_argument('-s', '--show', action="store_true", help='Show configuration and exit.')
+    parser.add_argument('cli_config_file',
+                        type=argparse.FileType('r'),
+                        help='CLI Configuration file. e.g. /etc/collectd/cadvisor-cli.yaml')
+    args = parser.parse_args()
+
+    #
+    # load cli configuration (bootstrap, what would be passed to python plugin via module block in collectd plugin conf)
+    #
+    opt_config = yaml.safe_load(args.cli_config_file.read())
+    for k, v in opt_config.iteritems():
+        key = k.lower()
+        if key == 'host':
+            config[key] = v
+        elif key == 'port':
+            config[key] = int(v)
+        elif key == 'config_file':
+            config[key] = v
+        else:
+            print('WARN -- cadvisor-cli: unknown config key {} = {}'.format(k, v), file=sys.stderr)
+
+    cli = CAdvisorClient(config)
+    if args.show:
+        cli.show_config()
+        sys.exit(0)
+
+    cli.emit_metrics(cli.fetch_metrics())
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
