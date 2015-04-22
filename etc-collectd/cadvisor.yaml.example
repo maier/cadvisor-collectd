@@ -2,32 +2,8 @@
 ###########################################################
 # CAdvisor specific settings
 ###########################################################
-# troubleshooting: curl -s "$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' cadvisor):8080/api/v2.0/machine" | python -m json.tool
-
-# cadvisor_container: (name|id)
-# - container name or ID (see 'docker ps' output)
-# - will derive 'ip:port' from struct retreived
-#   from docker. by default CAdvisor only exposes
-#   one port 8080. therefore, this will use
-#   NetworkSettings.IPAddress and first TCP port
-#   found in Config.ExposedPorts.
-# examples:
-#   cadvisor_container: cadvisor
-#   cadvisor_container: c83f389eccce
-#
-cadvisor_container: cadvisor
-
-# cadvisor_address: ip[:port]
-# - ip address, optional port of the cadvisor container
-# - default: none for ip, 8080 for port
-# examples:
-#   cadvisor_address: 127.0.0.1
-#   cadvisor_address: 127.0.0.1:8080
-# NOTE: use of cadvisor_address: takes precedence over cadvisor_container:.
-#
-#cadvisor_address: 127.0.0.1:8080
-
-
+# troubleshooting:
+#   curl -s "$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' cadvisor):8080/api/v2.0/machine" | python -m json.tool
 
 ###########################################################
 # Host system metrics
