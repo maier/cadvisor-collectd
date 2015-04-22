@@ -22,6 +22,5 @@ host: "docker/cadvisor"
 # config_file: string, pathspec for cadvisor.yaml
 # - default config file location /etc/collectd/cadvisor.yaml
 #
-# config_file: "/etc/collectd/cadvisor.yaml"
-config_file: "cadvisor.yaml"
+config_file: "/etc/collectd/cadvisor.yaml"
 

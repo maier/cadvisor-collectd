@@ -8,7 +8,7 @@ profile: "master"
 #
 # same as block Host
 #
-host: "127.0.0.1"
+host: "docker:gateway"
 #
 # same as block Port
 # mesos-master: 5050
@@ -24,7 +24,7 @@ separator: "."
 # same as block MetricConfigFile
 # the mesos metrics configuration file (would normally be in /etc/collectd/mesos.yaml)
 #
-metricconfigfile: "/home/vagrant/shared/src/tmp/mesos.yaml"
+metricconfigfile: "/etc/collectd/mesos.yaml"
 #
 # same as block TrackingName
 # - maintain metric continuity at the service level, regardless of which physical host is running the active master currently.
