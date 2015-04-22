@@ -15,7 +15,7 @@ RUN chown nobody /opt/collectd/cadvisor-cli
 RUN chmod +x /opt/collectd/cadvisor-cli
 COPY cadvisor/python/cadvisor.py /opt/collectd/python/
 COPY cadvisor/python/cadvisor-metrics.py /opt/collectd/python/
-COPY cadvisor-types.db /opt/collectd/
+COPY cadvisor/cadvisor-types.db /opt/collectd/
 
 COPY mesos/mesos-cli /opt/collectd/
 RUN chown nobody /opt/collectd/mesos-cli
@@ -24,7 +24,7 @@ COPY mesos/python/mesos.py /opt/collectd/python/
 COPY mesos/python/mesos_collectd.py /opt/collectd/python/
 COPY mesos/python/mesos-master.py /opt/collectd/python/
 COPY mesos/python/mesos-slave.py /opt/collectd/python/
-COPY mesos-types.db /opt/collectd/
+COPY mesos/mesos-types.db /opt/collectd/
 
 COPY collectd-launch.sh /
 RUN chmod +x /collectd-launch.sh
