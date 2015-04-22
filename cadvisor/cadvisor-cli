@@ -5,9 +5,9 @@
 #
 
 from __future__ import print_function
+import argparse
 import os
 import sys
-import argparse
 import yaml
 
 # *-cli scripts are installed in /opt/collectd
@@ -124,6 +124,7 @@ def main(argv):
             print('WARN -- cadvisor-cli: unknown config key {} = {}'.format(k, v), file=sys.stderr)
 
     cli = CAdvisorClient(config)
+
     if args.show:
         cli.show_config()
         sys.exit(0)
