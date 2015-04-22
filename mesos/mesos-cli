@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+#
+# Collectd exec script to gather metrics from Mesos (masters & slaves) and output them for Collectd
+#
+
 from __future__ import print_function
-# from time import strftime, gmtime
 import argparse
 import os
 import sys
@@ -78,6 +81,7 @@ def main(argv):
 
     parser = argparse.ArgumentParser(usage='%(prog)s [-h|--help] <config_file>',
                                      description='Collect and print metrics from Mesos master and slave endpoints')
+    parser.add_argument('-s', '--show', action="store_true", help='Show configuration and exit.')
     parser.add_argument('cli_config_file',
                         type=argparse.FileType('r'),
                         help='CLI Configuration file.')
@@ -85,14 +89,30 @@ def main(argv):
 
     # load cli configuration
     opt_config = yaml.safe_load(args.cli_config_file.read())
-    config.update(opt_config)
+    for k, v in opt_config.iteritems():
+        key = k.lower()
+        if key == 'host':
+            config[key] = v
+        elif key == 'port':
+            config[key] = int(v)
+        elif key == 'profile':
+            config['master'] = v.lower() == 'master'
+        elif key == 'separator':
+            config[key] = v
+        elif key == 'tracking_name':
+            config[key] = v
+        elif key == 'config_file':
+            config[key] = v
+        else:
+            print('WARN -- mesos-cli: unknown config key {} = {}'.format(k, v), file=sys.stderr)
 
-    mi = MesosClient(config)
-    mi.hostname = 'CLI-TEST'
-    # mi.show_config()
-    metrics = mi.fetch_metrics()
-    # print(metrics)
-    mi.emit_metrics(metrics)
+    cli = MesosClient(config)
+
+    if args.show:
+        cli.show_config()
+        sys.exit(0)
+
+    cli.emit_metrics(cli.fetch_metrics())
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

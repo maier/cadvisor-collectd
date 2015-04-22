@@ -22,15 +22,34 @@ def configurator(collectd_conf):
         host: ip of target mesos host
         port: port of target mesos host
         trackingname: vanity host name to use for master tracking
+        separator: separator character for mesos metric names
+        configfile: metric configuration file
     """
     global client
 
-    mesos_config = {}
+    config = {}
     for item in collectd_conf.children:
-        mesos_config[item.key.lower()] = item.values[0]
+        key = item.key.lower()
+        val = item.values[0]
+        if key == 'host':
+            config['host'] = val
+        elif key == 'port':
+            config['port'] = int(val)
+        elif key == 'separator':
+            config[key] = val
+        elif key == 'trackingname':
+            config['tracking_name'] = val
+        elif key == 'configfile':
+            config['config_file'] = val
+        else:
+            collectd.warning('mesos-master plugin: unknown config key {} = {}'.format(item.key, val))
 
-    mesos_config['profile'] = 'master'
-    client = MesosMaster(mesos_config)
+    #
+    # this cannot be overridden
+    #
+    config['master'] = True
+
+    client = MesosMaster(config)
 
 
 def reader():

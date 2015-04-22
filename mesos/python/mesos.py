@@ -27,10 +27,10 @@ class Mesos(object):
         self.config = config
 
         self.plugin = 'mesos'
-        self.plugin_instance = self.config['profile']
+        self.plugin_instance = 'master' if self.config['master'] else 'slave'
         self.active_master_key = 'master/elected'
         self.tracking_enabled = False
-        self.tracking_name = self.config.get('trackingname', None)
+        self.tracking_name = self.config.get('tracking_name', None)
 
         self.port = self.config['port']
         # get mesos host (ip) from docker if configured to do so
@@ -45,11 +45,11 @@ class Mesos(object):
 
         try:
             # load mesos metrics configuration
-            self.log_info('Parsing configuration from {}'.format(self.config['metricconfigfile']))
-            f = open(self.config['metricconfigfile'], 'r')
+            self.log_info('Parsing configuration from {}'.format(self.config['config_file']))
+            f = open(self.config['config_file'], 'r')
             config['metrics_config'] = yaml.safe_load(f)
         except Exception, e:
-            self.log_error('Unable to load configuration "{}": {}'.format(self.config['metricconfigfile'], e))
+            self.log_error('Unable to load configuration "{}": {}'.format(self.config['config_file'], e))
             sys.exit(1)
 
     def log(self, message, level='INFO'):
@@ -130,7 +130,7 @@ class Mesos(object):
         # disable tracking by default (master may have changed since last run)
         # enable it if this is a) a master, b) the active master, and c) a tracking name has been set
         self.tracking_enabled = False
-        if self.config['profile'] == 'master' and self.tracking_name:
+        if self.config['master'] and self.tracking_name:
             self.tracking_enabled = self.active_master_key in metrics and metrics[self.active_master_key] == 1
 
         for metric in metrics:
