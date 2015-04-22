@@ -176,7 +176,7 @@ The `collectd.service` and `cadvisor.service` unit files from this repository ca
 
 In no particular priority order...
 
-- [ ] add mesos metrics collection plugin for Collectd
+- [x] add mesos metrics collection plugin for Collectd
 - [ ] ansible playbook
 - [ ] option to pull container metrics from Docker or CAdvisor
 - [ ] configure from consul

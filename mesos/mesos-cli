@@ -2,10 +2,10 @@
 
 from __future__ import print_function
 # from time import strftime, gmtime
-import sys
 import argparse
-import yaml
 import os
+import sys
+import yaml
 
 from mesos import Mesos
 

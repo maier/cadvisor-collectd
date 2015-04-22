@@ -30,10 +30,7 @@ class Mesos(object):
         self.plugin_instance = self.config['profile']
         self.active_master_key = 'master/elected'
         self.tracking_enabled = False
-        try:
-            self.tracking_name = self.config['trackingname']
-        except KeyError:
-            self.tracking_name = None
+        self.tracking_name = self.config.get('trackingname', None)
 
         self.port = self.config['port']
         # get mesos host (ip) from docker if configured to do so
@@ -46,9 +43,14 @@ class Mesos(object):
         self.mesos_separator = '/'
         self.separator = self.config['separator'] if 'separator' in self.config else None
 
-        # load mesos metrics configuration
-        f = open(self.config['metricconfigfile'], 'r')
-        config['metrics_config'] = yaml.safe_load(f)
+        try:
+            # load mesos metrics configuration
+            self.log_info('Parsing configuration from {}'.format(self.config['metricconfigfile']))
+            f = open(self.config['metricconfigfile'], 'r')
+            config['metrics_config'] = yaml.safe_load(f)
+        except Exception, e:
+            self.log_error('Unable to load configuration "{}": {}'.format(self.config['metricconfigfile'], e))
+            sys.exit(1)
 
     def log(self, message, level='INFO'):
         """
@@ -158,6 +160,7 @@ class Mesos(object):
         try:
             cli = docker.Client(base_url=docker_socket)
             if host.lower() == 'docker:gateway':
+                # fragile: by default the 'hostname' of a container is its docker id
                 docker_container = cli.inspect_container(socket.gethostname())
                 ip = docker_container['NetworkSettings']['Gateway']
             elif host[0:7].lower() == 'docker/':
