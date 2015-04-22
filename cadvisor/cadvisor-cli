@@ -13,7 +13,7 @@ import yaml
 # *-cli scripts are installed in /opt/collectd
 # plugins runnable using the cli script *or*
 # collectd are placed in /opt/collectd/python
-from python import cadvisor.CAdvisor
+from python.cadvisor import CAdvisor
 
 #
 # environment variables set by Collectd
@@ -25,7 +25,7 @@ COLLECTD_ENV_INTERVAL = 'COLLECTD_INTERVAL'
 class CAdvisorClient(CAdvisor):
 
     def __init__(self, config):
-        super(CAdvisorClient, self).__init__(config.get('host', None), config.get('port', None), config.get('config_file', None))
+        super(CAdvisorClient, self).__init__(config)
 
         self.name = self.__class__.__name__
         self.hostname = 'NOT_PROVIDED'
