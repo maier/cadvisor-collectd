@@ -67,7 +67,7 @@ class CAdvisorClient(CAdvisor):
         if type_instance:
             type_spec = '{}-{}'.format(metric_type, type_instance)
 
-        print('PUTVAL {}/{}/{} INTERVAL={} N:{}'.format(host_spec, plugin_spec, type_spec, interval, ':'.join(metric_value)))
+        print('PUTVAL {}/{}/{} INTERVAL={} N:{}'.format(host_spec, plugin_spec, type_spec, interval, ':'.join(map(str, metric_value))))
 
     def show_config(self):
         self.set_cadvisor_connect_info()
