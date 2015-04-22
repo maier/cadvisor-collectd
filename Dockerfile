@@ -25,6 +25,6 @@ COPY mesos-types.db /opt/collectd/
 COPY collectd-launch.sh /
 RUN chmod +x /collectd-launch.sh
 
-VOLUME "/etc/collectd"
+VOLUME /etc/collectd
 
 CMD ["/collectd-launch.sh"]
