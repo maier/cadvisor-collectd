@@ -1,5 +1,5 @@
 .DS_Store
-/docs/
+/notes/
 /test/
 cadvisor.yaml
 cadvisor-cli.yaml
