@@ -2,6 +2,8 @@
 
 Collecting host and container metrics using [CAdvisor](https://registry.hub.docker.com/u/google/cadvisor/) and [Collectd](https://github.com/collectd/collectd/).
 
+Status: [docker registry](https://registry.hub.docker.com/u/maier/cadvisor-collectd/)
+
 ## Problem
 
 * Collect metrics from host system, running containers, and processes exposing metrics running in containers.
