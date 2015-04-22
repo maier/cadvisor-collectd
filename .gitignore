@@ -1,4 +1,5 @@
 .DS_Store
+/docs/
 cadvisor.yaml
 cadvisor-cli.yaml
 mesos.yaml
