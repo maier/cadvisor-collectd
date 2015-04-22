@@ -45,6 +45,7 @@ class Mesos(object):
 
         try:
             # load mesos metrics configuration
+            # self.log_info('Parsing configuration {}'.format(self.config_file))
             self.log_info('Parsing configuration from {}'.format(self.config['config_file']))
             f = open(self.config['config_file'], 'r')
             config['metrics_config'] = yaml.safe_load(f)

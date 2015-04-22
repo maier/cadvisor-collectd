@@ -39,7 +39,7 @@ class CAdvisor(object):
         #
 
         try:
-            self.log_info('Parsing configuration {}'.format(self.config_file))
+            # self.log_info('Parsing configuration {}'.format(self.config_file))
             f = open(self.config_file, 'r')
             self.config = yaml.load(f)
         except Exception, e:
