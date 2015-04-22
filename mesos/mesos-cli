@@ -7,7 +7,10 @@ import os
 import sys
 import yaml
 
-from mesos import Mesos
+# *-cli scripts are installed in /opt/collectd
+# plugins runnable using the cli script *or*
+# collectd are placed in /opt/collectd/python
+from python.mesos import Mesos
 
 #
 # environment variables set by Collectd when calling from Exec plugin

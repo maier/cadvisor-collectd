@@ -10,13 +10,10 @@ import sys
 import argparse
 import yaml
 
-lib_dir = os.path.dirname(os.path.abspath(__file__)) + '/python'
-if not os.path.exists(lib_dir):
-    print('Unable to find module path "{}"'.format(lib_dir))
-    sys.exit(1)
-
-sys.path.append(lib_dir)
-from cadvisor import CAdvisor
+# *-cli scripts are installed in /opt/collectd
+# plugins runnable using the cli script *or*
+# collectd are placed in /opt/collectd/python
+from python import cadvisor.CAdvisor
 
 #
 # environment variables set by Collectd
