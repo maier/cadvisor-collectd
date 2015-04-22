@@ -1,6 +1,8 @@
 .DS_Store
 cadvisor.yaml
+cadvisor-cli.yaml
 mesos.yaml
+mesos-cli.yaml
 etc-collectd/collectd.conf
 # ignore test config files
 etc-collectd/conf.d/*.conf
