@@ -6,7 +6,7 @@ LoadPlugin Network
 <Plugin "network">
   # Export to an internal server
   # (demonstrates usage without additional options)
-  Server "FQDN or IP"
+  Server "FQDN|IP"
 
   # Export to an external server
   # (demonstrates usage with signature options)

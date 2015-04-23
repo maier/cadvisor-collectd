@@ -5,7 +5,7 @@ LoadPlugin write_graphite
 
 <Plugin write_graphite>
   <Node "example">
-    Host "localhost"
+    Host "FQDN|IP"
     Port "2003"
     Protocol "tcp"
     LogSendErrors true
