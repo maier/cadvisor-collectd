@@ -144,12 +144,15 @@ sudo docker run --name=collectd -v $(pwd)/etc-collectd:/etc/collectd \
         - [x] all
         - [x] include -- implicit exclusion, explicit inclusion
         - [x] exclude -- implicit inclusion, explicit exclusion
-- [ ] rewirte and reorganize documentation
+- [x] rewirte and reorganize documentation
     - [x] introduction
     - [x] configuring collectd
     - [x] configuring cadvisor plugin
-    - [ ] configuring mesos plugin
+    - [x] configuring mesos plugin
     - [x] add quick start to README
+        - [x] csv
+        - [x] graphite
+        - [x] influxdb
 - [ ] ansible playbook
     - [ ] cadvisor service
     - [ ] cadvisor-collectd service
