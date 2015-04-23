@@ -64,13 +64,14 @@ class CAdvisor(object):
                                                    'include_other_slice': False
                                                },
                                                'include': [],
-                                               'exclude': '*'})
+                                               'exclude': ['*']
+                                               })
         self.service_filter = None
 
-        if self.system_services['include'] is not list:
+        if type(self.system_services['include']).__name__ != 'list':
             self.system_services['include'] = []
 
-        if self.system_services['exclude'] is not list:
+        if type(self.system_services['exclude']).__name__ != 'list':
             self.system_services['exclude'] = []
 
         if not self.system_services['include'] and not self.system_services['exclude']:                 # Include everything, not controlled by system_services.options
@@ -88,7 +89,7 @@ class CAdvisor(object):
 
         self.docker_enabled = self.config.get('docker_enabled', True)
         self.docker_container_config = self.config.get('docker_containers', [])
-        if type(self.docker_container_config) is not list:
+        if type(self.docker_container_config).__name__ != 'list':
             self.docker_container_config = []
 
         # namespec macros:
@@ -336,7 +337,7 @@ class CAdvisor(object):
         metric_type = 'time_ns'
         type_instance = None
         for i, v in enumerate(metrics['usage']['per_cpu_usage']):
-            plugin_instance = i
+            plugin_instance = str(i)
             self.dispatch_metric(container_name, container_id, plugin, plugin_instance, metric_type, type_instance, [v])
 
     def emit_memory_metrics(self, container_name, container_id, metrics):
@@ -568,6 +569,8 @@ class CAdvisor(object):
                     real_service_name = service.split('/')[-1].replace('.service', '.svc')
                 except (ValueError, KeyError):
                     real_service_name = service
+
+                real_service_name = real_service_name.replace('\x2d', "\x2d")
 
                 if self.service_filter == 'all':
                     self.output_metrics(real_service_name, 0, metrics[service][0], False)
