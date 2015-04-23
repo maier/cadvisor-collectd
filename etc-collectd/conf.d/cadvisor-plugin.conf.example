@@ -7,8 +7,14 @@
 
     Import "cadvisor-metrics"
     <Module "cadvisor-metrics">
+
+        # configuration options for cadvisor plugin
+        # documentation: https://github.com/maier/cadvisor-collectd/wiki
+
         Host "docker/cadvisor"
+
         # Port 8080
+
         ConfigFile "/etc/collectd/cadvisor.yaml"
     </Module>
 

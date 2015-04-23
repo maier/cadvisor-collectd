@@ -19,6 +19,8 @@ system_enabled: true
 #
 system_fs_metrics: false
 
+# OLD systems_services -- DEPRECATED
+#
 # system_services: list(string)
 # - default none (empty list)
 # - which subcontainers in /system.slice to include
@@ -27,18 +29,38 @@ system_fs_metrics: false
 #   which contains the string will be included. be
 #   more specific if needed. (e.g. 'docker.service' rather than 'docker')
 # - see: curl -s "$(docker inspect --format '{{ .NetworkSettings.IPAddress }}' cadvisor):8080/api/v1.3/containers/system.slice" | python -c 'import json,sys,pprint;obj=json.load(sys.stdin);pprint.pprint(obj["subcontainers"]);'
+# system_services:
+#   strings (e.g. 'mesos' would include any service with 'mesos' in the name)
+#   - mesos
+#   - marathon
+#   or explicit
+#   - docker.service
+#   - mesos-master.service
+#   - mesos-slave.service
+#   - marathon.service
+#   - etcd.service
+#   - fleet.service
+
+# see services: curl "http://$(docker inspect -f '{{.NetworkSettings.IPAddress}}' cadvisor):8080/api/v2.0/stats?recursive=true&count=1" | python -c 'import json,sys,pprint;obj=json.load(sys.stdin);pprint.pprint(obj.keys());'
+#
+# service filtering modes:
+# - everything (empty include and empty exclude)
+# - whitelist (exclude=["*"], include=list of services to include)
+# - blacklist (include=["*"], exclude=list of services to include)
+#
+# default is an empty whitelist, it will include any services you add to the include list
 #
 system_services:
-  # strings (e.g. 'mesos' would include any service with 'mesos' in the name)
-  #- mesos
-  #- marathon
-  # or explicit
-  #- docker.service
-  #- mesos-master.service
-  #- mesos-slave.service
-  #- marathon.service
-  #- etcd.service
-  #- fleet.service
+  options:
+    include_mounts: false
+    include_sockets: false
+    include_docker_scopes: false
+    include_system_slice: false
+    include_user_slice: false
+    include_other_slice: false
+  include:
+  exclude:
+    - "*"
 
 # NOTES:
 #   1 if certain metrics do not show up for system services, check:

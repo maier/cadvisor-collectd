@@ -27,6 +27,8 @@ class CAdvisor(object):
         super(CAdvisor, self).__init__()
         self.name = self.__class__.__name__
 
+        self.doc_url = 'https://github.com/maier/cadvisor-collectd/wiki/Configuring-CAdvisor'
+
         self.config_host = config.get('host', 'cadvisor/docker')
         self.config_port = config.get('port', 8080)
         self.config_file = config.get('config_file', '/etc/collectd/cadvisor.yaml')
@@ -52,9 +54,41 @@ class CAdvisor(object):
 
         self.system_enabled = self.config.get('system_enabled', False)
         self.system_fs_metrics = self.config.get('system_fs_metrics', False)
-        self.service_list = self.config.get('system_services', [])
-        if type(self.service_list) is not list:
-            self.service_list = []
+        self.system_services = self.config.get('system_services', {
+                                               'options': {
+                                                   'include_mounts': False,
+                                                   'include_sockets': False,
+                                                   'include_docker_scopes': False,
+                                                   'include_system_slice': False,
+                                                   'include_user_slice': False,
+                                                   'include_other_slice': False
+                                               },
+                                               'include': [],
+                                               'exclude': '*'})
+        self.service_filter = None
+
+        if self.system_services['include'] is not list:
+            self.system_services['include'] = []
+
+        if self.system_services['exclude'] is not list:
+            self.system_services['exclude'] = []
+
+        if not self.system_services['include'] and not self.system_services['exclude']:                 # Include everything, not controlled by system_services.options
+            self.service_filter = 'all'
+        elif '*' in self.system_services['exclude'] and '*' not in self.system_services['include']:     # implicit exclusion, explicit inclusion
+            self.service_filter = 'include'
+        elif '*' in self.system_services['include'] and '*' not in self.system_services['exclude']:     # implicit inclusion, explicit exclusion
+            self.service_filter = 'exclude'
+        elif'*' in self.system_services['include'] and '*' in self.system_services['exclude']:
+            self.log_error('Conflicting service filter configuration, cannot be include and exclude simultaneously. See documentation: {}'.format(self.doc_url))
+            sys.exit(1)
+        else:
+            self.log_error('No service filter configuration identified. See documentation: {}'.format(self.doc_url))
+            sys.exit(1)
+
+        # self.service_list = self.config.get('system_services', [])
+        # if type(self.service_list) is not list:
+        #    self.service_list = []
 
         self.docker_enabled = self.config.get('docker_enabled', True)
         self.docker_container_config = self.config.get('docker_containers', [])
@@ -496,17 +530,81 @@ class CAdvisor(object):
 
     def emit_metrics(self, metrics):
         """walk through retrieved CAdvisor metrics output each metric for collectd"""
+        for service in metrics.keys():
+            if service == '/':
+                if self.system_enabled:
+                    self.output_metrics('sys', 0, metrics[service][0], self.system_fs_metrics)
+                else:
+                    continue
+            elif service == '/system.slice':
+                if self.system_services['options']['include_system_slice']:
+                    self.output_metrics('sys.slice', 0, metrics[service][0], False)
+                else:
+                    continue
+            elif service == '/user.slice':
+                if self.system_services['options']['include_user_slice']:
+                    self.output_metrics('usr.slice', 0, metrics[service][0], False)
+                else:
+                    continue
+            elif service[-6:] == '.slice':
+                if self.system_services['options']['include_other_slice']:
+                    self.output_metrics('oth.slice', 0, metrics[service][0], False)
+                else:
+                    continue
+            elif service[-6:] == '.mount':
+                if self.system_services['options']['include_mounts']:
+                    self.output_metrics('mount', 0, metrics[service][0], False)
+                else:
+                    continue
+            elif service[-8:] == '.sockets':
+                if self.system_services['options']['include_sockets']:
+                    self.output_metrics('socket', 0, metrics[service][0], False)
+                else:
+                    continue
+            elif service[0:21] == '/system.slice/docker-' and service[-6:] == '.scope':
+                if self.system_services['options']['include_docker_scopes']:
+                    self.output_metrics('docker', 0, metrics[service][0], False)
+                else:
+                    continue
+            else:
 
-        if self.system_enabled:
-            self.output_metrics('sys', 0, metrics['/'][0], self.system_fs_metrics)
-            for service in self.service_list:
-                for item in metrics:
-                    if service in item:
-                        try:
-                            real_service_name = item.split('/')[-1]
-                        except (ValueError, KeyError):
-                            real_service_name = item
-                        self.output_metrics(real_service_name, 0, metrics[item][0])
+                try:
+                    real_service_name = service.split('/')[-1].replace('.service', '.svc')
+                except (ValueError, KeyError):
+                    real_service_name = service
+
+                if self.service_filter == 'all':
+                    self.output_metrics(real_service_name, 0, metrics[service][0], False)
+
+                elif self.service_filter == 'include':
+                    for elem in self.system_services['include']:
+                        if elem in service:
+                            self.output_metrics(real_service_name, 0, metrics[service][0], False)
+
+                elif self.service_filter == 'exclude':
+                    cleared = 0
+
+                    for elem in self.system_services['exclude']:
+                        if elem not in service:
+                            cleared += 1
+
+                    if cleared == len(self.system_services['exclude']):
+                        self.output_metrics(real_service_name, 0, metrics[service][0], False)
+
+                else:
+                        self.log_error("rut roh...There's an elephant in the room, never should have gotten here!")
+                        sys.exit(10)
+
+        # if self.system_enabled:
+        #     self.output_metrics('sys', 0, metrics['/'][0], self.system_fs_metrics)
+        #     for service in self.service_list:
+        #         for item in metrics:
+        #             if service in item:
+        #                 try:
+        #                     real_service_name = item.split('/')[-1]
+        #                 except (ValueError, KeyError):
+        #                     real_service_name = item
+        #                 self.output_metrics(real_service_name, 0, metrics[item][0])
 
         if self.docker_enabled:
             #
@@ -519,3 +617,5 @@ class CAdvisor(object):
             for docker_container in self.docker_container_list:
                 if docker_container['SliceId']:
                     self.output_metrics(''.join(docker_container['Names']).replace('/', ''), docker_container['Id'][0:12], metrics[docker_container['SliceId']][0])
+
+# END
