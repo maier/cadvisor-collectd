@@ -77,6 +77,10 @@ Refer to the repository wiki for [complete documentation](https://github.com/mai
         - [x] csv
         - [x] graphite
         - [x] influxdb
+    - [ ] add quickstart demo examples
+    	-  [x] csv
+    	-  [ ] influxdb
+    	-  [ ] graphite 
 - [ ] ansible playbook
     - [ ] cadvisor service
     - [ ] cadvisor-collectd service
