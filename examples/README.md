@@ -66,11 +66,8 @@ etc-collectd/conf.d/write_graphite.conf
 
 A very basic configuration and collectd types file.
 
-```
-sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:8083 -p 8086:8086 -e PRE_CREATE_DB="collectd" -d tutum/influxdb:latest
-```
 
-Proceed with remaining steps in quick start and point your browser to <http://localhost:48083/>, use root:root to log in to the influxdb web interface.
+Proceed with remaining steps in quick start and point your browser to <http://localhost:8083/>, use root:root to log in to the influxdb web interface.
 
 ### Graphite
 
@@ -78,9 +75,11 @@ Proceed with remaining steps in quick start and point your browser to <http://lo
 ./quickstart graphite
 ```
 
+Proceed with remaining steps in quick start and point your browser to <http://localhost:8081/>.
 
-```
-sudo docker run --name=graphite -p 80:80 -d nickstenning/graphite
-```
 
-Proceed with remaining steps in quick start and point your browser to <http://localhost:48080/>.
+### CAdvisor
+
+Access the built-in CAdvisor UI for realtime metrics.
+
+<http://localhost:8080/>
