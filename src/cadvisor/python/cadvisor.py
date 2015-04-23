@@ -86,10 +86,6 @@ class CAdvisor(object):
             self.log_error('No service filter configuration identified. See documentation: {}'.format(self.doc_url))
             sys.exit(1)
 
-        # self.service_list = self.config.get('system_services', [])
-        # if type(self.service_list) is not list:
-        #    self.service_list = []
-
         self.docker_enabled = self.config.get('docker_enabled', True)
         self.docker_container_config = self.config.get('docker_containers', [])
         if type(self.docker_container_config) is not list:
@@ -594,17 +590,6 @@ class CAdvisor(object):
                 else:
                         self.log_error("rut roh...There's an elephant in the room, never should have gotten here!")
                         sys.exit(10)
-
-        # if self.system_enabled:
-        #     self.output_metrics('sys', 0, metrics['/'][0], self.system_fs_metrics)
-        #     for service in self.service_list:
-        #         for item in metrics:
-        #             if service in item:
-        #                 try:
-        #                     real_service_name = item.split('/')[-1]
-        #                 except (ValueError, KeyError):
-        #                     real_service_name = item
-        #                 self.output_metrics(real_service_name, 0, metrics[item][0])
 
         if self.docker_enabled:
             #
