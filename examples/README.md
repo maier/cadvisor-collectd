@@ -1,21 +1,68 @@
 # Examples
 
-Contains simple artifacts for running the quick start examples.
+Contains simple artifacts for running the quick start examples. The enclosed Vagrantfile will start a CentOS 7 VM, install Docker, and pull the containers used by the quick starts. It will do all the leg work necessary to make running the quick starts as simple as possible.
 
-## Basic usage
+## Requirements
 
-The enclosed Vagrantfile will start a CentOS 7 VM, with Docker and git installed. It will pull down the latest containers required for the quick starts. Note, this Vagrantfile depends on the [VirtualBox](https://www.virtualbox.org/) provider. 
+This Vagrantfile depends on the [VirtualBox](https://www.virtualbox.org/) provider. 
+
+### Optional configuration
+
+* Resources - The default settings for CPU and memory in the Vagrantfile are:
+	* cpu 2
+	* memory 2048
+	* If there are not adequate resources available on the system running the examples, modify the Vagrantfile accordingly. (or, to increase performance of the examples, adjust upwards...)
+* Ports - several ports are exposed for InfluxDB and Graphite.
+	* InfluxDB
+		* tcp/8083
+		* tcp/8086
+	* Graphite
+		* tcp/8081
+	* CAdvisor
+		* tcp/8080
+	* If any of these ports conflict with ports on the system, edit the Vagrantfile and change the ports.
+* Hostname - the quick starts will use `$(hostname)` as the hostname for Collectd to make things less complex.  
+
+## Start the VM
 
 ```
 vagrant up
 vagrant ssh
+cd examples
+# run appropriate quick start command
+./quickstart (csv|influxdb|graphite)
 ```
 
-## CSV
+### Configuration files
 
-Nothing more to do, run the commands from the csv quick start on the repository readme.
+The list of configuration files which will be used (created if they don't exist). To customize any of the quick starts ahead of time, copy the corresponding `.example` removing the extension. Keep the rest of the file name the same, e.g. `cp etc-collectd/collectd.conf.example etc-collectd/collectd.conf`
 
-## InfluxDB
+```
+etc-collectd/collectd.conf
+
+etc-collectd/cadvisor.yaml
+
+# for CSV quick start
+etc-collectd/conf.d/write_csv.conf
+
+# for InfluxDB quick start
+etc-collectd/conf.d/write_network.conf
+
+# for Graphite quick start
+etc-collectd/conf.d/write_graphite.conf
+```
+
+### CSV
+
+```
+./quickstart csv
+```
+
+### InfluxDB
+
+```
+./quickstart influxdb
+```
 
 A very basic configuration and collectd types file.
 
@@ -25,7 +72,12 @@ sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:80
 
 Proceed with remaining steps in quick start and point your browser to <http://localhost:48083/>, use root:root to log in to the influxdb web interface.
 
-## Graphite
+### Graphite
+
+```
+./quickstart graphite
+```
+
 
 ```
 sudo docker run --name=graphite -p 80:80 -d nickstenning/graphite

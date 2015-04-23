@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+function usage {
+	echo "Usage: $0 (csv|influxdb|graphite)"
+}
+
+function get_container_state {
+	[ -z "$1" ] && { echo "function $FUNCNAME requires the name of a container."; exit 1; }
+    cur_state=$(docker inspect -f "{{.State.Running}}") "$1"
+    [ $? -ne 0 ] && return 2                    # doesn't exist (docker run ...)
+    [ "$cur_state" == "false" ] && return 1     # stopped, (docker start ...)
+    [ "$cur_state" == "true" ] && return 0      # already running, all good
+}
+
+function start_metrics_collection {
+    state=$(get_container_state cadvisor)
+    if [ $state -gt 0 ]; then
+        [ $state -eq 2 ] && sudo docker run --name=cadvisor -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys:ro -v /var/lib/docker/:/var/lib/docker:ro -p 8080:8080 -d google/cadvisor:latest
+        [ $state -eq 1 ] && sudo docker start cadvisor
+    fi
+
+    state=$(get_container_state collectd)
+    if [ $state -gt 0 ]; then
+        [ $state -eq 2 ] && sudo docker run --name=collectd -v /home/vagrant/examples/etc-collectd:/etc/collectd -v /var/run/docker.sock:/var/run/docker.sock -d maier/collectd
+        [ $state -eq 1 ] && sudo docker start collectd
+    fi
+}
+
+if [ "$#" -ne 1 ]; then
+	usage
+	exit 1
+fi
+
+case $1 in
+csv)
+	echo "Quick start example with CSV..."
+	start_metrics_collection
+	# start shell in collectd container
+	sudo docker exec -ti collectd /bin/sh "cd /opt/collectd/csv/centos7 && ls -l"
+	;;
+influxdb)
+	echo "Quick start example with InfluxDB..."
+    state=$(get_container_state influxdb)
+    if [ $state -gt 0 ]; then
+        [ $state -eq 2 ] && sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:8083 -p 8086:8086 -e PRE_CREATE_DB="collectd" -d tutum/influxdb:latest
+        [ $state -eq 1 ] && sudo docker start influxdb
+    fi
+    start_metrics_collection
+    echo "InfluxDB UI: http://localhost:8083/"
+	;;
+graphite)
+	echo "Quick start example with Graphite..."
+    state=$(get_container_state graphite)
+    if [ $state -gt 0 ]; then
+        [ $state -eq 2 ] && sudo docker run --name=graphite -p 8081:80 -d nickstenning/graphite
+        [ $state -eq 1 ] && sudo docker start graphite
+    fi
+	start_metrics_collection
+    echo "Graphite UI: http://localhost:8081/"
+	;;
+*)
+	echo -e "ERROR: Unknown quick start option: '$1'."
+	usage
+	exit 1
+esac
+
