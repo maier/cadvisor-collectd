@@ -45,6 +45,7 @@ As alternatives surface they will be investigated from the perspective of simpli
    * Containers
    * Mesos
 * Easy to use...which is, of course, relative and subjective :)
+* Basic metric name manipulation for metric continuity
 
 # Getting started
 
@@ -53,9 +54,34 @@ See the repository wiki for [complete documentation](https://github.com/maier/ca
 ## On deck
 
 - [x] add mesos metrics collection plugin for Collectd
-- [x] refactor cadvisor, mesos -- provide both command line and plugin capabilities
+- [x] refactor cadvisor and mesos -- provide both command line and plugin capabilities
+- [ ] add service filter modes to cadvisor
+    - [ ] group options
+        - [ ] mounts
+        - [ ] sockets
+        - [ ] docker scopes
+        - [ ] user slice
+        - [ ] system slice
+        - [ ] other slices
+    - [ ] service options
+        - [ ] all
+        - [ ] include -- implicit exclusion, explicit inclusion
+        - [ ] exclude -- implicit inclusion, explicit exclusion
 - [ ] rewirte and reorganize documentation
+    - [ ] introduction
+    - [ ] configuring collectd
+    - [ ] configuring cadvisor plugin
+    - [ ] configuring mesos plugin
 - [ ] ansible playbook
-- [ ] option to pull container metrics from Docker or CAdvisor
-- [ ] configure from consul
-- [ ] configure from etcd
+    - [ ] cadvisor service
+    - [ ] cadvisor-collectd service
+    - [ ] configure collectd
+    - [ ] configure cadvisor plugin
+    - [ ] configure mesos plugin
+- [ ] options for metric source (for docker containers)
+    - [ ] Docker
+    - [ ] CAdvisor
+- [ ] configuration sources
+    - [ ] consul
+    - [ ] etcd
+        - [ ] confd
