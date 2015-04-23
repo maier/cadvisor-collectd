@@ -48,6 +48,7 @@ Vagrant.configure(2) do |config|
     cd /home/vagrant
     svn export https://github.com/maier/cadvisor-collectd/trunk/examples
     cd examples
+    mkdir csv
     chmod 700 quickstart
     svn export https://github.com/maier/cadvisor-collectd/trunk/etc-collectd
     cd /home/vagrant

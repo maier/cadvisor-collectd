@@ -1,27 +1,65 @@
 #!/usr/bin/env bash
 
+set -ux
+
 function usage {
 	echo "Usage: $0 (csv|influxdb|graphite)"
 }
 
+function target_config {
+    local target_conf=$1
+    local target_ip=$2
+    [ -z "$target_conf" ] && { echo "function $FUNCNAME requires the name of the configuration file."; exit 1; }
+    [ -z "$target_ip" ] && { echo "function $FUNCNAME requires the ip of the target services."; exit 1; }
+    [ -f "${target_conf}.example" ] || { echo "Unable to find target configuration example ${target_conf}.example."; exit 1; }
+    if [ ! -f $target_conf ]; then
+        sed "s/FQDN\|IP/$target_ip/" "${target_conf}.example" > $target_conf
+    fi
+}
+
+function bootstrap_configs {
+    local conf_dir='etc-collectd'
+    local conf_file="${conf_dir}/collectd.conf"
+    if [ ! -f $conf_file ]; then
+        [ -f "${conf_file}.example" ] || { echo "Unable to find ${conf_file}.example."; exit 1; }
+        sed "s/example.local/$(hostname)/" "${conf_file}.example" > $conf_file
+    fi
+    conf_file="${conf_dir}/cadvisor.yaml"
+    if [ ! -f $conf_file ]; then
+        [ -f "${conf_file}.example" ] || { echo "Unable to find ${conf_file}.example."; exit 1; }
+        cp "${conf_file}.example" $conf_file
+    fi
+    conf_file="${conf_dir}/conf.d/cadvisor.conf"
+    if [ ! -f $conf_file ]; then
+        local ex_file="${conf_dir}/conf.d/cadvisor-plugin.conf.example"
+        [ -f $ex_file ] || { echo "Unable to find ${ex_file}."; exit 1; }
+        cp $ex_file $conf_file
+    fi
+}
+
 function get_container_state {
-	[ -z "$1" ] && { echo "function $FUNCNAME requires the name of a container."; exit 1; }
-    cur_state=$(docker inspect -f "{{.State.Running}}") "$1"
+    local container_name=$1
+    local cur_state=-1
+	[ -z "$container_name" ] && { echo "function $FUNCNAME requires the name of a container."; exit 1; }
+    cur_state=$(sudo docker inspect -f "{{.State.Running}}" "$container_name" 2> /dev/null)
     [ $? -ne 0 ] && return 2                    # doesn't exist (docker run ...)
     [ "$cur_state" == "false" ] && return 1     # stopped, (docker start ...)
     [ "$cur_state" == "true" ] && return 0      # already running, all good
 }
 
 function start_metrics_collection {
-    state=$(get_container_state cadvisor)
+    local state=-1
+    get_container_state cadvisor
+    state=$?
     if [ $state -gt 0 ]; then
         [ $state -eq 2 ] && sudo docker run --name=cadvisor -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys:ro -v /var/lib/docker/:/var/lib/docker:ro -p 8080:8080 -d google/cadvisor:latest
         [ $state -eq 1 ] && sudo docker start cadvisor
     fi
-
-    state=$(get_container_state collectd)
+    state=-1
+    get_container_state collectd
+    state=$?
     if [ $state -gt 0 ]; then
-        [ $state -eq 2 ] && sudo docker run --name=collectd -v /home/vagrant/examples/etc-collectd:/etc/collectd -v /var/run/docker.sock:/var/run/docker.sock -d maier/collectd
+        [ $state -eq 2 ] && sudo docker run --name=collectd -v /home/vagrant/examples/csv:/opt/collectd/csv -v /home/vagrant/examples/etc-collectd:/etc/collectd -v /var/run/docker.sock:/var/run/docker.sock -d maier/cadvisor-collectd:latest
         [ $state -eq 1 ] && sudo docker start collectd
     fi
 }
@@ -34,12 +72,18 @@ fi
 case $1 in
 csv)
 	echo "Quick start example with CSV..."
+    bootstrap_configs
+    config_file='etc-collectd/conf.d/write_csv.conf'
+    [ -f $config_file ] || cp "${config_file}.example" $config_file
 	start_metrics_collection
-	# start shell in collectd container
-	sudo docker exec -ti collectd /bin/sh "cd /opt/collectd/csv/centos7 && ls -l"
+    echo "Metrics will show up in the csv/ directory. e.g. cd csv/centos7 && ls -l"
 	;;
 influxdb)
 	echo "Quick start example with InfluxDB..."
+    influx_conf='etc-collectd/conf.d/write_network.conf'
+    influx_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' influxdb)
+    bootstrap_configs
+    target_config $influx_conf $influx_ip
     state=$(get_container_state influxdb)
     if [ $state -gt 0 ]; then
         [ $state -eq 2 ] && sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:8083 -p 8086:8086 -e PRE_CREATE_DB="collectd" -d tutum/influxdb:latest
@@ -50,6 +94,10 @@ influxdb)
 	;;
 graphite)
 	echo "Quick start example with Graphite..."
+    graphite_conf='etc-collectd/conf.d/write_graphite.conf'
+    graphtie_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' graphite)
+    bootstrap_configs
+    target_config $graphite_conf $graphite_ip
     state=$(get_container_state graphite)
     if [ $state -gt 0 ]; then
         [ $state -eq 2 ] && sudo docker run --name=graphite -p 8081:80 -d nickstenning/graphite
