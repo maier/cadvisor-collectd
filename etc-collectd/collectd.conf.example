@@ -1,14 +1,11 @@
 #
 # - for static ip and valid dns fwd/rev
-#   uncomment next two lines
 ##Hostname
 #FQDNLookup true
 #
-#
 # - for dynamic ip and hostname
-#   uncomment next two lines and put correct hostname between quotes
-#Hostname "test.local"
-#FQDNLookup false
+Hostname "example.local"
+FQDNLookup false
 
 # interval at which collectd will collect metrics
 Interval 60
