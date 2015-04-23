@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "maier/centos-7.1.1503-x86_64"
+  config.vm.network 'private_network', type: 'dhcp'
+
+  # 
+  # for influxdb quick start
+  #
+  # <http://localhost:48083/>
+  config.vm.network 'forwarded_port', guest: 8083, host: 48083
+  config.vm.network 'forwarded_port', guest: 8086, host: 48086
+
+  #
+  # for graphite quick start
+  #
+  # <http://localhost:40080/>
+  config.vm.network 'forwarded_port', guest: 80, host: 40080
+
+  # 
+  # to expose the cadvisor realtime interface
+  #
+  # !! IMPORTANT !!
+  # make sure to add " -p 8080:8080" to the docker run command
+  # for cadvisor. by default the ui is *not* exposed.
+  #
+  # <http://localhost:48080/>
+  config.vm.network 'forwarded_port', guest: 8080, host: 48080
+
+  config.vm.provider "virtualbox" do |vb|
+	vb.cpus = 2
+    vb.memory = "2048"
+  end
+
+  config.vm.provision "shell", privileged: true, inline: <<-SHELL
+  yum -y update
+  yum -y install git
+  echo -e "[virt7-testing]\nname=virt7-testing\nbaseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/\nenabled=0\ngpgcheck=0" > /etc/yum.repos.d/virt7-testing.repo
+  yum -y --disablerepo=extras --enablerepo=virt7-testing install docker
+  systemctl enable docker.service
+  systemctl start docker.service
+  systemctl status docker.service
+  docker pull google/cadvisor:latest
+  docker pull maier/cadvisor-collectd:latest
+  docker pull nickstenning/graphite:latest
+  docker pull tutum/influxdb:latest
+  SHELL
+end
