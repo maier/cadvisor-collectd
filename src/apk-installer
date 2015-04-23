@@ -1,0 +1,28 @@
+#!/bin/sh
+
+max_retries=5
+cur_attempt=1
+errors=0
+msg=""
+log="/tmp/apk-install.log"
+while [ $cur_attempt -lt $max_retries ]; do
+    echo "Attempt $cur_attempt of $max_retries $(date)" > $log
+    echo "cmd: apk add $*" >> $log
+
+    apk --update add $* 2&>1 | tee $log
+
+    errors=$(grep -c "ERROR:" $log)
+    if [ $errors -eq 0 ]; then
+        break
+    fi
+
+    : $((cur_attempt = $cur_attempt + 1))
+    echo "Attempt $cur_attempt of $max_retries."
+    #sed -i '/^[^#]/ s/^/#/' /etc/apk/repositories
+    #setup-apkrepos -r
+done
+
+[ $errors -eq 0 ] || echo "Persisent ERRORs adding '$*' after $max_retries attempts."
+
+exit $errors
+

@@ -12,3 +12,5 @@ etc-collectd/conf.d/*.conf
 !etc-collectd/conf.d/cadvisor.conf
 # temporary files
 tmp
+Vagrantfile
+.vagrant/
