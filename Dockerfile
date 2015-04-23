@@ -1,7 +1,10 @@
 FROM gliderlabs/alpine:latest
 MAINTAINER matt maier <mgmaier@gmail.com>
 
-RUN apk-install collectd collectd-python collectd-network py-pip py-yaml
+COPY src/apk-installer /
+RUN chmod +x /apk-installer
+
+RUN /apk-installer collectd collectd-python collectd-network py-pip py-yaml
 RUN pip install docker-py
 
 RUN mkdir -p /opt/collectd/csv
