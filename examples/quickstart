@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
-set -ux
+function CREATED {
+    echo ", created."
+}
+function EXISTING {
+    echo ", using existing."
+}
 
 function usage {
 	echo "Usage: $0 (csv|influxdb|graphite)"
@@ -11,29 +16,47 @@ function target_config {
     local target_ip=$2
     [ -z "$target_conf" ] && { echo "function $FUNCNAME requires the name of the configuration file."; exit 1; }
     [ -z "$target_ip" ] && { echo "function $FUNCNAME requires the ip of the target services."; exit 1; }
-    [ -f "${target_conf}.example" ] || { echo "Unable to find target configuration example ${target_conf}.example."; exit 1; }
+
+    echo -ne "\t$target_conf"
     if [ ! -f $target_conf ]; then
+        [ -f "${target_conf}.example" ] || { echo "Unable to find target configuration example ${target_conf}.example."; exit 1; }
         sed "s/FQDN\|IP/$target_ip/" "${target_conf}.example" > $target_conf
+        CREATED
+    else
+        EXISTING
     fi
 }
 
 function bootstrap_configs {
     local conf_dir='etc-collectd'
     local conf_file="${conf_dir}/collectd.conf"
+    echo "Bootstrapping configurations:"
+    echo -ne "\t$conf_file"
     if [ ! -f $conf_file ]; then
         [ -f "${conf_file}.example" ] || { echo "Unable to find ${conf_file}.example."; exit 1; }
         sed "s/example.local/$(hostname)/" "${conf_file}.example" > $conf_file
+        CREATED
+    else
+        EXISTING
     fi
     conf_file="${conf_dir}/cadvisor.yaml"
+    echo -ne "\t$conf_file"
     if [ ! -f $conf_file ]; then
         [ -f "${conf_file}.example" ] || { echo "Unable to find ${conf_file}.example."; exit 1; }
         cp "${conf_file}.example" $conf_file
+        CREATED
+    else
+        EXISTING
     fi
     conf_file="${conf_dir}/conf.d/cadvisor.conf"
+    echo -ne "\t$conf_file"
     if [ ! -f $conf_file ]; then
         local ex_file="${conf_dir}/conf.d/cadvisor-plugin.conf.example"
         [ -f $ex_file ] || { echo "Unable to find ${ex_file}."; exit 1; }
         cp $ex_file $conf_file
+        CREATED
+    else
+        EXISTING
     fi
 }
 
@@ -49,19 +72,32 @@ function get_container_state {
 
 function start_metrics_collection {
     local state=-1
+    echo
     get_container_state cadvisor
     state=$?
     if [ $state -gt 0 ]; then
-        [ $state -eq 2 ] && sudo docker run --name=cadvisor -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys:ro -v /var/lib/docker/:/var/lib/docker:ro -p 8080:8080 -d google/cadvisor:latest
-        [ $state -eq 1 ] && sudo docker start cadvisor
+        set -e
+        [ $state -eq 2 ] && { echo "Creating CAdvisor container"; sudo docker run --name=cadvisor -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys:ro -v /var/lib/docker/:/var/lib/docker:ro -p 8080:8080 -d google/cadvisor:latest; }
+        [ $state -eq 1 ] && { echo "Starting CAdvisor container"; sudo docker start cadvisor; }
+        set +e
+    else
+        echo "CAdvisor container is running"
     fi
+
+    echo
+
     state=-1
     get_container_state collectd
     state=$?
     if [ $state -gt 0 ]; then
-        [ $state -eq 2 ] && sudo docker run --name=collectd -v /home/vagrant/examples/csv:/opt/collectd/csv -v /home/vagrant/examples/etc-collectd:/etc/collectd -v /var/run/docker.sock:/var/run/docker.sock -d maier/cadvisor-collectd:latest
-        [ $state -eq 1 ] && sudo docker start collectd
+        set -e
+        [ $state -eq 2 ] && { echo "Creating Collectd container"; sudo docker run --name=collectd -v /home/vagrant/examples/csv:/opt/collectd/csv -v /home/vagrant/examples/etc-collectd:/etc/collectd -v /var/run/docker.sock:/var/run/docker.sock -d maier/cadvisor-collectd:latest; }
+        [ $state -eq 1 ] && { echo "Starting Collectd container"; sudo docker start collectd; }
+        set +e
+    else
+        echo "Collectd container is running"
     fi
+    echo
 }
 
 if [ "$#" -ne 1 ]; then
@@ -71,10 +107,16 @@ fi
 
 case $1 in
 csv)
-	echo "Quick start example with CSV..."
+	echo -e "\nQuick start example with CSV...\n"
     bootstrap_configs
     config_file='etc-collectd/conf.d/write_csv.conf'
-    [ -f $config_file ] || cp "${config_file}.example" $config_file
+    echo -ne "\t$config_file"
+    if [ ! -f $config_file ]; then
+        cp "${config_file}.example" $config_file
+        CREATED
+    else
+        EXISTING
+    fi
 	start_metrics_collection
     echo "Metrics will show up in the csv/ directory. e.g. cd csv/centos7 && ls -l"
 	;;
@@ -84,10 +126,16 @@ influxdb)
     influx_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' influxdb)
     bootstrap_configs
     target_config $influx_conf $influx_ip
-    state=$(get_container_state influxdb)
+    echo
+    get_container_state influxdb
+    state=$?
     if [ $state -gt 0 ]; then
-        [ $state -eq 2 ] && sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:8083 -p 8086:8086 -e PRE_CREATE_DB="collectd" -d tutum/influxdb:latest
-        [ $state -eq 1 ] && sudo docker start influxdb
+        set -e
+        [ $state -eq 2 ] && { echo "Creating InfluxDB container"; sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:8083 -p 8086:8086 -e PRE_CREATE_DB="collectd" -d tutum/influxdb:latest; }
+        [ $state -eq 1 ] && { echo "Starting InfluxDB container"; sudo docker start influxdb; }
+        set +e
+    else
+        echo "InfluxDB container is running"
     fi
     start_metrics_collection
     echo "InfluxDB UI: http://localhost:8083/"
@@ -98,10 +146,16 @@ graphite)
     graphtie_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' graphite)
     bootstrap_configs
     target_config $graphite_conf $graphite_ip
-    state=$(get_container_state graphite)
+    echo
+    get_container_state graphite
+    state=$?
     if [ $state -gt 0 ]; then
-        [ $state -eq 2 ] && sudo docker run --name=graphite -p 8081:80 -d nickstenning/graphite
-        [ $state -eq 1 ] && sudo docker start graphite
+        set -e
+        [ $state -eq 2 ] && { echo "Creating Graphite container"; sudo docker run --name=graphite -p 8081:80 -d nickstenning/graphite; }
+        [ $state -eq 1 ] && { echo "Starting Graphite container"; sudo docker start graphite; }
+        set +e
+    else
+        echo "Graphite container is running"
     fi
 	start_metrics_collection
     echo "Graphite UI: http://localhost:8081/"
@@ -112,3 +166,6 @@ graphite)
 	exit 1
 esac
 
+echo
+echo
+# END
