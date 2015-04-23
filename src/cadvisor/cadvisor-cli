@@ -85,7 +85,7 @@ class CAdvisorClient(CAdvisor):
         self.log_debug('Collectd Interval: {}'.format(self.interval))
         self.log_debug('Host namespec    : "{}"'.format(self.host_namespec))
         self.log_debug('Plugin namespec  : "{}"'.format(self.plugin_namespec))
-        self.log_debug('Service list     : {}'.format(self.service_list))
+        self.log_debug('Service list     : {}'.format(self.system_services))
         self.log_debug('Docker list      : {}'.format(self.docker_container_config))
         self.log_debug('Active metrics   : {}'.format(self.active_metrics))
 
