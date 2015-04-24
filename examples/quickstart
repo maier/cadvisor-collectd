@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 
-function CREATED {
-    echo ", created."
-}
-function EXISTING {
-    echo ", using existing."
-}
+CREATED () { echo ", created."; }
+EXISTING () { echo ", using existing."; }
+usage () { echo "Usage: $0 (csv|influxdb|graphite)"; }
 
-function usage {
-	echo "Usage: $0 (csv|influxdb|graphite)"
-}
+[ "$#" -ne 1 ] && { usage; exit 1; }
+quickstart_type="$1"
 
 function target_config {
-    local target_conf=$1
-    local target_ip=$2
+    local target_conf="$1"
+    local target_ip="$2"
     [ -z "$target_conf" ] && { echo "function $FUNCNAME requires the name of the configuration file."; exit 1; }
     [ -z "$target_ip" ] && { echo "function $FUNCNAME requires the ip of the target services."; exit 1; }
 
@@ -29,8 +25,11 @@ function target_config {
 
 function bootstrap_configs {
     local conf_dir='etc-collectd'
-    local conf_file="${conf_dir}/collectd.conf"
+    local conf_file=""
+
     echo "Bootstrapping configurations:"
+
+    conf_file="${conf_dir}/collectd.conf"
     echo -ne "\t$conf_file"
     if [ ! -f $conf_file ]; then
         [ -f "${conf_file}.example" ] || { echo "Unable to find ${conf_file}.example."; exit 1; }
@@ -39,6 +38,7 @@ function bootstrap_configs {
     else
         EXISTING
     fi
+
     conf_file="${conf_dir}/cadvisor.yaml"
     echo -ne "\t$conf_file"
     if [ ! -f $conf_file ]; then
@@ -48,9 +48,11 @@ function bootstrap_configs {
     else
         EXISTING
     fi
+
     conf_file="${conf_dir}/conf.d/cadvisor.conf"
     echo -ne "\t$conf_file"
     if [ ! -f $conf_file ]; then
+        # opt for the cadvisor plugin vs the exec version
         local ex_file="${conf_dir}/conf.d/cadvisor-plugin.conf.example"
         [ -f $ex_file ] || { echo "Unable to find ${ex_file}."; exit 1; }
         cp $ex_file $conf_file
@@ -72,7 +74,9 @@ function get_container_state {
 
 function start_metrics_collection {
     local state=-1
+
     echo
+
     get_container_state cadvisor
     state=$?
     if [ $state -gt 0 ]; then
@@ -100,18 +104,17 @@ function start_metrics_collection {
         sudo docker restart collectd
         set +e
     fi
+
     echo
 }
 
-if [ "$#" -ne 1 ]; then
-	usage
-	exit 1
-fi
 
-case $1 in
+case $quickstart_type in
 csv)
 	echo -e "\nQuick start example with CSV...\n"
+
     bootstrap_configs
+
     config_file='etc-collectd/conf.d/write_csv.conf'
     echo -ne "\t$config_file"
     if [ ! -f $config_file ]; then
@@ -120,11 +123,16 @@ csv)
     else
         EXISTING
     fi
+
 	start_metrics_collection
+
     echo "Metrics will show up in the csv/ directory. e.g. cd csv/centos7 && ls -l"
 	;;
 influxdb)
-	echo "Quick start example with InfluxDB..."
+	echo -e "\nQuick start example with InfluxDB...\n"
+
+    bootstrap_configs
+
     echo
     get_container_state influxdb
     state=$?
@@ -138,11 +146,13 @@ influxdb)
         echo "InfluxDB container is running"
     fi
     echo
+
     influx_conf='etc-collectd/conf.d/write_network.conf'
     influx_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' influxdb)
-    bootstrap_configs
     target_config $influx_conf $influx_ip
+
     start_metrics_collection
+
     echo "InfluxDB UI: http://localhost:8083/"
     echo "InfluxDB user: root"
     echo "InfluxDB password: root"
@@ -152,13 +162,16 @@ influxdb)
     echo "Another query for demo purposes: 'select value from /.*\/cadvisor.cpu\/time_ns-total/ limit 30'"
 	;;
 graphite)
-	echo "Quick start example with Graphite..."
+	echo -e "\nQuick start example with Graphite...\n"
+
+    bootstrap_configs
+
     echo
     get_container_state graphite
     state=$?
     if [ $state -gt 0 ]; then
         set -e
-        [ $state -eq 2 ] && { echo "Creating Graphite container"; sudo docker run --name=graphite -p 8081:80 -d nickstenning/graphite; }
+        [ $state -eq 2 ] && { echo "Creating Graphite container"; sudo docker run --name=graphite -v /home/vagrant/examples/graphite/storage-schemas.conf:/var/lib/graphite/conf/storage-schemas.conf -p 8081:80 -d nickstenning/graphite; }
         [ $state -eq 1 ] && { echo "Starting Graphite container"; sudo docker start graphite; }
         set +e
         sleep 5
@@ -166,16 +179,18 @@ graphite)
         echo "Graphite container is running"
     fi
     echo
+
     graphite_conf='etc-collectd/conf.d/write_graphite.conf'
     graphite_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' graphite)
-    bootstrap_configs
     target_config $graphite_conf $graphite_ip
+
 	start_metrics_collection
+
     echo "Graphite UI: http://localhost:8081/"
     echo "Navigate the tree to Graphite.$(hostname) (or the hostname placed in collectd.conf if it was modified)."
 	;;
 *)
-	echo -e "ERROR: Unknown quick start option: '$1'."
+	echo "ERROR: Unknown quick start option: '$1'."
 	usage
 	exit 1
 esac
