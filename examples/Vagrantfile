@@ -37,23 +37,25 @@ Vagrant.configure(2) do |config|
     yum -y install svn
     # install docker v1.6
     echo -e "[virt7-testing]\nname=virt7-testing\nbaseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/\nenabled=0\ngpgcheck=0" > /etc/yum.repos.d/virt7-testing.repo
-    yum -y --disablerepo=extras --enablerepo=virt7-testing install docker
-    groupadd docker
-    usermod -aG docker vagrant
-    sed -i '/\[Service\]/aGroup=docker' /usr/lib/systemd/system/docker.service
-    systemctl enable docker.service
-    systemctl start docker.service
-    systemctl status docker.service
+    yum -y --disablerepo="*" --enablerepo="virt7-testing" install docker
+    getent group docker &>/dev/null || groupadd docker
+    groups vagrant | grep &>/dev/null '\bdocker\b' || usermod -aG docker vagrant &>/dev/null
+    if [ $(grep -c '^Group=docker' /usr/lib/systemd/system/docker.service) -ne 1 ]; then
+      sed -i '/^\[Service\]/aGroup=docker' /usr/lib/systemd/system/docker.service
+      systemctl enable docker.service
+      systemctl start docker.service
+      systemctl status docker.service
+    fi
     docker pull google/cadvisor:latest
     docker pull maier/cadvisor-collectd:latest
     docker pull nickstenning/graphite:latest
     docker pull tutum/influxdb:latest
     cd /home/vagrant
-    svn export https://github.com/maier/cadvisor-collectd/trunk/examples
+    svn export --force https://github.com/maier/cadvisor-collectd/trunk/examples
     cd examples
-    mkdir csv
+    [ -d csv ] || mkdir csv
     chmod 700 quickstart
-    svn export https://github.com/maier/cadvisor-collectd/trunk/etc-collectd
+    svn export --force https://github.com/maier/cadvisor-collectd/trunk/etc-collectd
     cd /home/vagrant
     chown -R vagrant:vagrant examples
     SHELL
