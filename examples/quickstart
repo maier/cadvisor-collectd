@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+#
+# control overwriting influxdb and graphite collectd write configs
+# string, "(yes|no)"
+#
+KEEP_WRITE_CONFIGS="no"
+
 CREATED () { echo ", created."; }
 EXISTING () { echo ", using existing."; }
 usage () { echo "Usage: $0 (csv|influxdb|graphite)"; }
@@ -10,10 +16,12 @@ quickstart_type="$1"
 function target_config {
     local target_conf="$1"
     local target_ip="$2"
+    local create_config=1
     [ -z "$target_conf" ] && { echo "function $FUNCNAME requires the name of the configuration file."; exit 1; }
     [ -z "$target_ip" ] && { echo "function $FUNCNAME requires the ip of the target services."; exit 1; }
 
     echo -ne "\t$target_conf"
+    [[ -f $target_conf  && "${KEEP_WRITE_CONFIGS,,}" == "no" ]] && { echo -n ", removing previous config"; rm $target_conf; }
     if [ ! -f $target_conf ]; then
         [ -f "${target_conf}.example" ] || { echo "Unable to find target configuration example ${target_conf}.example."; exit 1; }
         sed "s/FQDN|IP/$target_ip/" "${target_conf}.example" > $target_conf
@@ -149,6 +157,7 @@ influxdb)
 
     influx_conf='etc-collectd/conf.d/write_network.conf'
     influx_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' influxdb)
+    echo "Creating Collectd configuration for InfluxDB listening at ${influx_ip}"
     target_config $influx_conf $influx_ip
 
     start_metrics_collection
@@ -182,6 +191,7 @@ graphite)
 
     graphite_conf='etc-collectd/conf.d/write_graphite.conf'
     graphite_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' graphite)
+    echo "Creating Collectd configuration for Graphite listening at ${graphite_ip}"
     target_config $graphite_conf $graphite_ip
 
 	start_metrics_collection
