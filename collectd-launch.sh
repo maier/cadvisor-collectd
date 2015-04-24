@@ -26,16 +26,19 @@ exec_plugin_group="docker"
 #
 sock_group_id=$(/bin/stat -c %g $docker_sock 2>/dev/null)
 [ $? -eq 0 ] || { echo "$docker_sock not found!"; exit 1; }
-[ $sock_group_id -eq 0 ] && { echo "$docker_sock group is 'root', host OS not running docker.service with Group=docker."; exit 1; }
 
-# add a group with the id and add the exec_plugin_user to
-# the group.
-#
-# ignore any errors (that the group already exists or that
-# the user is already a member).
-#
-/usr/sbin/addgroup -g $sock_group_id $exec_plugin_group &>/dev/null
-/usr/sbin/addgroup $exec_plugin_user $exec_plugin_group &>/dev/null
+if [ $sock_group_id -eq 0 ]; then
+	echo "$docker_sock group is 'root', host OS not running docker.service with Group=docker. Exec plugins will not have access to docker.sock."
+else
+	# add a group with the id and add the exec_plugin_user to
+	# the group.
+	#
+	# ignore any errors (that the group already exists or that
+	# the user is already a member).
+	#
+	/usr/sbin/addgroup -g $sock_group_id $exec_plugin_group &>/dev/null
+	/usr/sbin/addgroup $exec_plugin_user $exec_plugin_group &>/dev/null
+fi
 
 
 # fire in the hole
