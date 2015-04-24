@@ -133,6 +133,7 @@ influxdb)
         [ $state -eq 2 ] && { echo "Creating InfluxDB container"; sudo docker run --name=influxdb -v /home/vagrant/examples/influxdb:/config -p 8083:8083 -p 8084:8084 -p 8086:8086 -e PRE_CREATE_DB="collectd;graphite" -d tutum/influxdb:latest; }
         [ $state -eq 1 ] && { echo "Starting InfluxDB container"; sudo docker start influxdb; }
         set +e
+        sleep 5
     else
         echo "InfluxDB container is running"
     fi
@@ -152,10 +153,6 @@ influxdb)
 	;;
 graphite)
 	echo "Quick start example with Graphite..."
-    graphite_conf='etc-collectd/conf.d/write_graphite.conf'
-    graphtie_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' graphite)
-    bootstrap_configs
-    target_config $graphite_conf $graphite_ip
     echo
     get_container_state graphite
     state=$?
@@ -164,11 +161,18 @@ graphite)
         [ $state -eq 2 ] && { echo "Creating Graphite container"; sudo docker run --name=graphite -p 8081:80 -d nickstenning/graphite; }
         [ $state -eq 1 ] && { echo "Starting Graphite container"; sudo docker start graphite; }
         set +e
+        sleep 5
     else
         echo "Graphite container is running"
     fi
+    echo
+    graphite_conf='etc-collectd/conf.d/write_graphite.conf'
+    graphite_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' graphite)
+    bootstrap_configs
+    target_config $graphite_conf $graphite_ip
 	start_metrics_collection
     echo "Graphite UI: http://localhost:8081/"
+    echo "Navigate the tree to Graphite.$(hostname) (or the hostname placed in collectd.conf if it was modified)."
 	;;
 *)
 	echo -e "ERROR: Unknown quick start option: '$1'."
