@@ -20,7 +20,7 @@ function target_config {
     echo -ne "\t$target_conf"
     if [ ! -f $target_conf ]; then
         [ -f "${target_conf}.example" ] || { echo "Unable to find target configuration example ${target_conf}.example."; exit 1; }
-        sed "s/FQDN\|IP/$target_ip/" "${target_conf}.example" > $target_conf
+        sed "s/FQDN|IP/$target_ip/" "${target_conf}.example" > $target_conf
         CREATED
     else
         EXISTING
@@ -95,7 +95,10 @@ function start_metrics_collection {
         [ $state -eq 1 ] && { echo "Starting Collectd container"; sudo docker start collectd; }
         set +e
     else
-        echo "Collectd container is running"
+        echo "Collectd container is running, restarting to pick up any new configurations."
+        set -e
+        sudo docker restart collectd
+        set +e
     fi
     echo
 }
@@ -122,23 +125,30 @@ csv)
 	;;
 influxdb)
 	echo "Quick start example with InfluxDB..."
-    influx_conf='etc-collectd/conf.d/write_network.conf'
-    influx_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' influxdb)
-    bootstrap_configs
-    target_config $influx_conf $influx_ip
     echo
     get_container_state influxdb
     state=$?
     if [ $state -gt 0 ]; then
         set -e
-        [ $state -eq 2 ] && { echo "Creating InfluxDB container"; sudo docker run --name=influxdb -v /vagrant/examples/influxdb:/config -p 8083:8083 -p 8086:8086 -e PRE_CREATE_DB="collectd" -d tutum/influxdb:latest; }
+        [ $state -eq 2 ] && { echo "Creating InfluxDB container"; sudo docker run --name=influxdb -v /home/vagrant/examples/influxdb:/config -p 8083:8083 -p 8084:8084 -p 8086:8086 -e PRE_CREATE_DB="collectd;graphite" -d tutum/influxdb:latest; }
         [ $state -eq 1 ] && { echo "Starting InfluxDB container"; sudo docker start influxdb; }
         set +e
     else
         echo "InfluxDB container is running"
     fi
+    echo
+    influx_conf='etc-collectd/conf.d/write_network.conf'
+    influx_ip=$(sudo docker inspect -f '{{.NetworkSettings.IPAddress}}' influxdb)
+    bootstrap_configs
+    target_config $influx_conf $influx_ip
     start_metrics_collection
     echo "InfluxDB UI: http://localhost:8083/"
+    echo "InfluxDB user: root"
+    echo "InfluxDB password: root"
+    echo "InfluxDB hostname and port: 127.0.0.1 8086"
+    echo "Once you're in, click 'Databases' then 'Explore Data'"
+    echo "In the query field, type 'list series' and click the Execute Query button to see all of the metrics"
+    echo "Another query for demo purposes: 'select value from /.*\/cadvisor.cpu\/time_ns-total/ limit 30'"
 	;;
 graphite)
 	echo "Quick start example with Graphite..."
