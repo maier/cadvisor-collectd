@@ -8,19 +8,19 @@
 #    Import "mesos-master"
 #    <Module "mesos-master">
 #        Host "docker:gateway"
-#        Port 5050
-#        # TrackingName ""
+#        # Port 5050
+#        TrackingName "mesos.master"
 #        ConfigFile "/etc/collectd/mesos.yaml"
-#        # Separator ""
+#        Separator "."
 #    </Module>
 
 
 #    Import "mesos-slave"
 #    <Module "mesos-slave">
 #        Host "docker:gateway"
-#        Port 5051
+#        # Port 5051
 #        ConfigFile "/etc/collectd/mesos.yaml"
-#        # Separator ""
+#        Separator "."
 #    </Module>
 
 </Plugin>

@@ -27,7 +27,7 @@ def configurator(collectd_conf):
     """
     global client
 
-    config = {}
+    config = {'port': 5051}
     for item in collectd_conf.children:
         key = item.key.lower()
         val = item.values[0]
