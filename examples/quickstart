@@ -11,7 +11,7 @@ EXISTING () { echo ", using existing."; }
 usage () { echo "Usage: $0 (csv|influxdb|graphite)"; }
 
 [ "$#" -ne 1 ] && { usage; exit 1; }
-quickstart_type="$1"
+quickstart_type=$(echo $1 | tr -d '/')
 
 function target_config {
     local target_conf="$1"
