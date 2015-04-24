@@ -61,7 +61,7 @@ class CAdvisor(object):
                                                    'include_docker_scopes': False,
                                                    'include_system_slice': False,
                                                    'include_user_slice': False,
-                                                   'include_other_slice': False
+                                                   'include_other_slices': False
                                                },
                                                'include': [],
                                                'exclude': ['*']
@@ -544,7 +544,7 @@ class CAdvisor(object):
                 else:
                     continue
             elif service[-6:] == '.slice':
-                if self.system_services['options']['include_other_slice']:
+                if self.system_services['options']['include_other_slices']:
                     self.output_metrics('oth.slice', 0, metrics[service][0], False)
                 else:
                     continue
