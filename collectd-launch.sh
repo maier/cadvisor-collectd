@@ -26,7 +26,7 @@ exec_plugin_group="docker"
 #
 sock_group_id=$(/bin/stat -c %g $docker_sock 2>/dev/null)
 [ $? -eq 0 ] || { echo "$docker_sock not found!"; exit 1; }
-
+[ $sock_group_id -eq 0 ] && { echo "$docker_sock group is 'root', host OS not running docker.service with Group=docker."; exit 1; }
 
 # add a group with the id and add the exec_plugin_user to
 # the group.
