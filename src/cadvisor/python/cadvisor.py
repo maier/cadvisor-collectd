@@ -374,6 +374,10 @@ class CAdvisor(object):
         metric_type = None
         type_instance = None
 
+        # In some occasions, the adapters might be wrapped in an "interfaces":{[...]} JSON object
+        if 'interfaces' in metrics.keys():
+            metrics = metrics['interfaces']
+
         #
         # the if_(dropped|packets|octets|errors) collectd types
         # expect the values to be compound in the form: rx:tx
