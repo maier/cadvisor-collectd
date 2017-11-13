@@ -608,6 +608,9 @@ class CAdvisor(object):
             self.set_container_slice_ids()
             for docker_container in self.docker_container_list:
                 if docker_container['SliceId']:
-                    self.output_metrics(''.join(docker_container['Names']).replace('/', ''), docker_container['Id'][0:12], metrics[docker_container['SliceId']][0])
 
+                    for key in metrics.keys():
+                        if docker_container['Id'] in key:
+                            self.output_metrics(''.join(docker_container['Names']).replace('/', ''), docker_container['Id'][0:12], metrics[key][0])
+                            break
 # END
